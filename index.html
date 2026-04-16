@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>⚔️ Minecraft Battle Simulator ⚔️</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database-compat.js"></script>
+    
     <style>
-        /* ========== НАСТРОЙКИ СТИЛЕЙ ========== */
         :root {
             --bg-dark: #0a0f18;
             --bg-panel: #0d1622;
@@ -89,21 +93,30 @@
         /* ========== МУЛЬТИПЛЕЕР ПАНЕЛЬ ========== */
         .multiplayer-panel {
             display: flex;
+            flex-direction: column;
             gap: 8px;
             margin-bottom: 8px;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
+            padding: 10px;
+            background: #0e1a26;
+            border-radius: 20px;
+            border: 1px solid #3d6688;
         }
         
-        .multiplayer-btn {
+        .mp-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .mp-btn {
             background: var(--btn-bg);
             border: none;
             padding: 8px 14px;
             border-radius: 25px;
             font-family: inherit;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
             color: #ccdeee;
             box-shadow: inset 0 1px 3px black, 0 3px 0 #0c1822;
             cursor: pointer;
@@ -111,15 +124,72 @@
             border-bottom: 1px solid #5b8bb9;
         }
         
-        .multiplayer-btn.active {
+        .mp-btn.active {
             background: var(--btn-active);
             color: white;
             transform: translateY(2px);
             box-shadow: inset 0 2px 6px black, 0 1px 0 #1a3147;
         }
         
+        .mp-btn.green {
+            background: #2e8b57;
+            border-bottom-color: #3cb371;
+        }
+        
+        .room-list {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #0a1622;
+            border-radius: 15px;
+            padding: 5px;
+        }
+        
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #1a2c3d;
+            border-radius: 15px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            border: 1px solid #3d6688;
+        }
+        
+        .room-item:hover {
+            background: #243b52;
+        }
+        
+        .room-code {
+            font-weight: bold;
+            color: #FFD700;
+            font-size: 16px;
+        }
+        
+        .room-players {
+            color: #8da9cc;
+            font-size: 12px;
+        }
+        
+        .code-display {
+            color: #FFD700;
+            font-weight: bold;
+            font-size: 20px;
+            letter-spacing: 2px;
+            background: #0a1622;
+            padding: 5px 15px;
+            border-radius: 25px;
+            border: 1px solid #FFD700;
+        }
+        
+        .status-badge {
+            color: #4a8ec9;
+            font-weight: bold;
+            text-align: center;
+        }
+        
         .code-input {
-            background: #0e1a26;
+            background: #0a1622;
             border: 1px solid #3d6688;
             padding: 8px 12px;
             border-radius: 25px;
@@ -129,22 +199,6 @@
             text-align: center;
             outline: none;
             width: 120px;
-        }
-        
-        .code-display {
-            color: #FFD700;
-            font-weight: bold;
-            font-size: 20px;
-            letter-spacing: 2px;
-            background: #0e1a26;
-            padding: 5px 15px;
-            border-radius: 25px;
-            border: 1px solid #FFD700;
-        }
-        
-        .status-badge {
-            color: #4a8ec9;
-            font-weight: bold;
         }
         
         /* ========== ВИРТУАЛЬНЫЙ ДЖОЙСТИК ========== */
@@ -346,8 +400,6 @@
             font-size: 11px;
         }
     </style>
-    <!-- PeerJS для мультиплеера -->
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
 <div class="game-container">
@@ -356,11 +408,18 @@
         
         <!-- Мультиплеер панель -->
         <div class="multiplayer-panel">
-            <button class="multiplayer-btn" id="hostBtn">🎮 СОЗДАТЬ</button>
-            <button class="multiplayer-btn" id="joinBtn">🔗 ПОДКЛЮЧИТЬСЯ</button>
-            <input type="text" class="code-input" id="codeInput" placeholder="Введи код" maxlength="8" style="display:none;">
-            <span class="code-display" id="codeDisplay"></span>
-            <span class="status-badge" id="connectionStatus"></span>
+            <div class="mp-row">
+                <button class="mp-btn" id="hostBtn">🎮 СОЗДАТЬ</button>
+                <button class="mp-btn" id="refreshBtn">🔄 ОБНОВИТЬ</button>
+                <button class="mp-btn" id="leaveBtn" style="display:none;">🚪 ВЫЙТИ</button>
+            </div>
+            <div class="room-list" id="roomList">
+                <div style="color:#6a8aaa;text-align:center;">Нажми "ОБНОВИТЬ"</div>
+            </div>
+            <div class="mp-row">
+                <span class="code-display" id="codeDisplay"></span>
+                <span class="status-badge" id="connectionStatus"></span>
+            </div>
         </div>
         
         <div class="canvas-container">
@@ -419,75 +478,64 @@
     (function(){
         "use strict";
         
-        // ==================== КОНФИГУРАЦИЯ ====================
+        // ==================== FIREBASE КОНФИГ ====================
+        const firebaseConfig = {
+            databaseURL: "https://mbsim-313c1-default-rtdb.firebaseio.com/"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        // ==================== КОНФИГ ИГРЫ ====================
         const CONFIG = {
-            // Арена
             CANVAS_SIZE: 700,
             BOX_SIZE: 580,
             PLAYER_RADIUS: 33,
-            
-            // Физика
             MAX_SPEED: 450,
             MIN_SPEED: 140,
             BLUE_ACCEL: 1600,
             RED_ACCEL: 1200,
             FRICTION: 0.995,
-            
-            // TNT
             TNT_COOLDOWN: 600,
             TNT_RADIUS: 200,
             TNT_DAMAGE_MIN: 5,
             TNT_DAMAGE_MAX: 15,
             POISON_DURATION: 420,
             POISON_DAMAGE: 1,
-            
-            // Удочка
             ROD_COOLDOWN: 180,
             HOOK_SPEED: 5.5,
             ROD_DAMAGE_PER_BOUNCE: 8,
             MAX_BOUNCES: 5,
-            
-            // Топор
             AXE_COOLDOWN: 60,
-            AXE_DAMAGE: 8,               // Уменьшено с 15 до 8
+            AXE_DAMAGE: 8,
             AXE_ORBIT_RADIUS: 55,
             AXE_ROTATION_SPEED: 0.0435,
             AXE_KNOCKBACK: 400,
             AXE_HITBOX_RADIUS: 50,
             AXE_OFFSET_X: 15,
             AXE_OFFSET_Y: -10,
-            
-            // Лук
             BOW_COOLDOWN: 60,
             BOW_MAX_CHARGE: 60,
             BOW_MIN_DAMAGE: 1,
             BOW_MAX_DAMAGE: 15,
             ARROW_SPEED: 5,
             ARROW_HOMING_STRENGTH: 0.15,
-            
-            // Щит
             SHIELD_MAX_STAMINA: 180,
             SHIELD_COOLDOWN: 300,
             SHIELD_REFLECT_PERCENT: 0.7,
             SHIELD_SPEED_MULTIPLIER: 0.6,
-            
-            // Колокол
             BELL_COOLDOWN: 120,
             BELL_WAVE_RADIUS: 250,
             BELL_WAVE_DAMAGE: 2,
             BELL_WALL_DAMAGE: 5,
             BELL_KNOCKBACK: 280,
-            
-            // Ифрит (Blaze)
             BLAZE_COOLDOWN: 180,
             BLAZE_DAMAGE: 5,
-            BLAZE_SPEED: 5,               // Увеличена скорость
+            BLAZE_SPEED: 5,
             BLAZE_SPREAD: 20,
             BLAZE_ORBIT_RADIUS: 45,
             BLAZE_ROTATION_SPEED: 0.05,
-            BLAZE_HOMING_STRENGTH: 0.08, // Самонаведение
-            
-            // Бот
+            BLAZE_HOMING_STRENGTH: 0.08,
             BOT_SHOOT_CHANCE: 0.03,
             BOT_TNT_DISTANCE: 80
         };
@@ -504,7 +552,6 @@
             fire_charge: 'https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/item/fire_charge.png'
         };
         
-        // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
         const weaponImages = {};
         const imageLoaded = {};
         for (let [key, src] of Object.entries(TEXTURES)) {
@@ -526,18 +573,17 @@
             h: CONFIG.BOX_SIZE
         };
         
-        // Состояние игры
+        // ==================== СОСТОЯНИЕ ИГРЫ ====================
         let gameStarted = false;
         let animationId = null;
         let lastTimestamp = 0;
         
         // Мультиплеер
-        let peer = null;
-        let conn = null;
+        let roomId = null;
+        let playerRole = null; // 'blue' или 'red'
         let isMultiplayer = false;
-        let isHost = false;
-        let playerRole = 'blue';
         let opponentConnected = false;
+        let roomRef = null;
         
         // Игроки
         let blue, red;
@@ -552,6 +598,12 @@
         let spacePressed = false;
         let joystickActive = false, joystickVector = { x: 0, y: 0 }, attackPressed = false;
         
+        // UI элементы
+        const roomListEl = document.getElementById('roomList');
+        const codeDisplay = document.getElementById('codeDisplay');
+        const statusEl = document.getElementById('connectionStatus');
+        const leaveBtn = document.getElementById('leaveBtn');
+        
         // ==================== СОЗДАНИЕ ИГРОКА ====================
         function createPlayer(side, x, y) {
             return {
@@ -563,7 +615,7 @@
                 bowCharge: 0, bowCharging: false, bowTarget: null,
                 shieldActive: false, shieldStamina: CONFIG.SHIELD_MAX_STAMINA, shieldCooldown: 0,
                 bellCooldown: 0,
-                hitWall: false, wallHitTimer: 0,
+                hitWall: false, wallHitTimer: 0, hitEffect: 0,
                 blazeAngle: 0
             };
         }
@@ -575,121 +627,192 @@
         }
         resetPlayers();
         
-        // ==================== МУЛЬТИПЛЕЕР ====================
-        const hostBtn = document.getElementById('hostBtn');
-        const joinBtn = document.getElementById('joinBtn');
-        const codeInput = document.getElementById('codeInput');
-        const codeDisplay = document.getElementById('codeDisplay');
-        const statusEl = document.getElementById('connectionStatus');
+        // ==================== FIREBASE МУЛЬТИПЛЕЕР ====================
+        function generateRoomCode() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
         
-        function initMultiplayer() {
-            hostBtn.addEventListener('click', () => {
-                if (peer) peer.destroy();
-                peer = new Peer();
-                
-                peer.on('open', (id) => {
-                    codeDisplay.textContent = id;
-                    statusEl.textContent = '✅ Код готов!';
-                    isHost = true;
-                    isMultiplayer = true;
-                    playerRole = 'blue';
-                    opponentConnected = false;
-                });
-                
-                peer.on('connection', (connection) => {
-                    conn = connection;
-                    setupConnection();
-                    statusEl.textContent = '🎮 Игрок подключился!';
+        function createRoom() {
+            roomId = generateRoomCode();
+            roomRef = db.ref('rooms/' + roomId);
+            
+            roomRef.set({
+                host: { connected: true, timestamp: firebase.database.ServerValue.TIMESTAMP },
+                guest: null,
+                gameState: null,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            playerRole = 'blue';
+            isMultiplayer = true;
+            codeDisplay.textContent = roomId;
+            statusEl.textContent = '⏳ Ожидание игрока...';
+            leaveBtn.style.display = 'inline-block';
+            
+            // Слушаем подключение гостя
+            roomRef.child('guest').on('value', (snapshot) => {
+                const guest = snapshot.val();
+                if (guest && guest.connected) {
                     opponentConnected = true;
+                    statusEl.textContent = '🎮 Игрок подключился!';
+                }
+            });
+            
+            // Хост получает данные от гостя (красный игрок)
+            roomRef.child('gameState/red').on('value', (snapshot) => {
+                const redState = snapshot.val();
+                if (redState && !gameStarted) {
+                    red.x = redState.x;
+                    red.y = redState.y;
+                    red.hp = redState.hp;
+                    red.weapon = redState.weapon;
+                    red.facing = redState.facing;
+                }
+            });
+            
+            // Автоудаление комнаты при выходе
+            roomRef.child('host/connected').onDisconnect().set(false);
+            roomRef.child('host').onDisconnect().remove();
+        }
+        
+        function joinRoom(code) {
+            roomId = code.toUpperCase();
+            roomRef = db.ref('rooms/' + roomId);
+            
+            roomRef.once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    statusEl.textContent = '❌ Комната не найдена';
+                    return;
+                }
+                
+                const room = snapshot.val();
+                if (room.guest && room.guest.connected) {
+                    statusEl.textContent = '❌ Комната занята';
+                    return;
+                }
+                
+                roomRef.child('guest').set({
+                    connected: true,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
                 });
                 
-                peer.on('error', (err) => {
-                    statusEl.textContent = '❌ Ошибка сети';
-                    console.error(err);
+                playerRole = 'red';
+                isMultiplayer = true;
+                opponentConnected = true;
+                codeDisplay.textContent = roomId;
+                statusEl.textContent = '✅ Подключено!';
+                leaveBtn.style.display = 'inline-block';
+                
+                // Гость получает данные от хоста (синий игрок и снаряды)
+                roomRef.child('gameState').on('value', (snapshot) => {
+                    const state = snapshot.val();
+                    if (state) {
+                        if (state.blue) {
+                            blue.x = state.blue.x;
+                            blue.y = state.blue.y;
+                            blue.hp = state.blue.hp;
+                            blue.weapon = state.blue.weapon;
+                            blue.facing = state.blue.facing;
+                        }
+                        if (state.projectiles) {
+                            arrows = state.projectiles.arrows || [];
+                            blazeBalls = state.projectiles.blazeBalls || [];
+                            tntMarks = state.projectiles.tntMarks || [];
+                            poisonClouds = state.projectiles.poisonClouds || [];
+                            bellWaves = state.projectiles.bellWaves || [];
+                        }
+                    }
                 });
-            });
-            
-            joinBtn.addEventListener('click', () => {
-                codeInput.style.display = 'inline-block';
-                codeInput.focus();
-            });
-            
-            codeInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const opponentId = codeInput.value.trim();
-                    if (!opponentId) return;
-                    
-                    if (peer) peer.destroy();
-                    peer = new Peer();
-                    
-                    peer.on('open', () => {
-                        conn = peer.connect(opponentId);
-                        setupConnection();
-                        statusEl.textContent = '🔄 Подключение...';
-                        isHost = false;
-                        isMultiplayer = true;
-                        playerRole = 'red';
-                        codeDisplay.textContent = '';
-                        codeInput.style.display = 'none';
-                    });
-                    
-                    peer.on('error', () => statusEl.textContent = '❌ Неверный код');
-                }
+                
+                roomRef.child('guest/connected').onDisconnect().set(false);
+                roomRef.child('guest').onDisconnect().remove();
             });
         }
         
-        function setupConnection() {
-            conn.on('open', () => {
-                statusEl.textContent = '✅ Готово!';
-                opponentConnected = true;
-            });
-            
-            conn.on('data', (data) => {
-                if (!isMultiplayer) return;
-                
+        function leaveRoom() {
+            if (roomRef) {
                 if (playerRole === 'blue') {
-                    red.x = data.player.x; red.y = data.player.y;
-                    red.vx = data.player.vx; red.vy = data.player.vy;
-                    red.hp = data.player.hp; red.weapon = data.player.weapon;
-                    red.facing = data.player.facing; red.shieldActive = data.player.shieldActive;
+                    roomRef.child('host/connected').set(false);
+                    roomRef.remove();
                 } else {
-                    blue.x = data.player.x; blue.y = data.player.y;
-                    blue.vx = data.player.vx; blue.vy = data.player.vy;
-                    blue.hp = data.player.hp; blue.weapon = data.player.weapon;
-                    blue.facing = data.player.facing; blue.shieldActive = data.player.shieldActive;
+                    roomRef.child('guest/connected').set(false);
+                    roomRef.child('guest').remove();
+                }
+            }
+            
+            roomId = null;
+            playerRole = null;
+            isMultiplayer = false;
+            opponentConnected = false;
+            gameStarted = false;
+            codeDisplay.textContent = '';
+            statusEl.textContent = '';
+            leaveBtn.style.display = 'none';
+            resetPlayers();
+        }
+        
+        function refreshRoomList() {
+            const roomsRef = db.ref('rooms');
+            roomsRef.once('value', (snapshot) => {
+                const rooms = snapshot.val();
+                roomListEl.innerHTML = '';
+                
+                if (!rooms) {
+                    roomListEl.innerHTML = '<div style="color:#6a8aaa;text-align:center;">Нет активных комнат</div>';
+                    return;
                 }
                 
-                if (!isHost) {
-                    arrows = data.arrows || [];
-                    blazeBalls = data.blazeBalls || [];
-                    tntMarks = data.tntMarks || [];
-                    poisonClouds = data.poisonClouds || [];
-                    bellWaves = data.bellWaves || [];
+                Object.entries(rooms).forEach(([code, room]) => {
+                    if (!room.host?.connected) return;
+                    
+                    const hasGuest = room.guest?.connected;
+                    if (hasGuest) return; // Не показываем занятые комнаты
+                    
+                    const roomDiv = document.createElement('div');
+                    roomDiv.className = 'room-item';
+                    roomDiv.innerHTML = `
+                        <span class="room-code">${code}</span>
+                        <span class="room-players">👤 1/2</span>
+                    `;
+                    roomDiv.addEventListener('click', () => joinRoom(code));
+                    roomListEl.appendChild(roomDiv);
+                });
+                
+                if (roomListEl.children.length === 0) {
+                    roomListEl.innerHTML = '<div style="color:#6a8aaa;text-align:center;">Нет доступных комнат</div>';
                 }
             });
         }
         
         function sendGameState() {
-            if (!conn || !conn.open) return;
+            if (!roomRef || !playerRole) return;
             
-            const player = playerRole === 'blue' ? blue : red;
-            const state = {
-                player: {
-                    x: player.x, y: player.y, vx: player.vx, vy: player.vy,
-                    hp: player.hp, weapon: player.weapon,
-                    facing: player.facing, shieldActive: player.shieldActive
-                }
-            };
-            
-            if (isHost) {
-                state.arrows = arrows;
-                state.blazeBalls = blazeBalls;
-                state.tntMarks = tntMarks;
-                state.poisonClouds = poisonClouds;
-                state.bellWaves = bellWaves;
+            if (playerRole === 'blue') {
+                // Хост отправляет всё
+                roomRef.child('gameState').set({
+                    blue: {
+                        x: blue.x, y: blue.y, vx: blue.vx, vy: blue.vy,
+                        hp: blue.hp, weapon: blue.weapon, facing: blue.facing
+                    },
+                    red: {
+                        x: red.x, y: red.y, vx: red.vx, vy: red.vy,
+                        hp: red.hp, weapon: red.weapon, facing: red.facing
+                    },
+                    projectiles: {
+                        arrows: arrows,
+                        blazeBalls: blazeBalls,
+                        tntMarks: tntMarks,
+                        poisonClouds: poisonClouds,
+                        bellWaves: bellWaves
+                    }
+                });
+            } else {
+                // Гость отправляет только своего красного
+                roomRef.child('gameState/red').set({
+                    x: red.x, y: red.y, vx: red.vx, vy: red.vy,
+                    hp: red.hp, weapon: red.weapon, facing: red.facing
+                });
             }
-            
-            conn.send(state);
         }
         
         // ==================== ФИЗИКА ====================
@@ -733,14 +856,9 @@
                 if (ref > 0 && source === 'blue') blue.hp = Math.max(0, blue.hp - ref);
             }
             target.hp = Math.max(0, target.hp - dmg);
-            
-            // Эффект при попадании
-            if (amount > 0) {
-                target.hitEffect = 5;
-            }
+            if (amount > 0) target.hitEffect = 5;
         }
         
-        // ==================== ОРУЖИЕ ====================
         function createHook(owner, target) {
             const dx = target.x - owner.x, dy = target.y - owner.y, dist = Math.hypot(dx, dy);
             let vx = owner.facing * CONFIG.HOOK_SPEED, vy = 0;
@@ -792,7 +910,6 @@
             angles.forEach(angleOffset => {
                 let rad = baseAngle + (angleOffset * Math.PI / 180);
                 
-                // Добавляем самонаведение (как у лука, но слабее)
                 const dx = target.x - owner.x, dy = target.y - owner.y;
                 const dist = Math.hypot(dx, dy);
                 if (dist > 0) {
@@ -817,7 +934,6 @@
             owner.blazeCooldown = CONFIG.BLAZE_COOLDOWN;
         }
         
-        // ==================== БОТ ====================
         function botAI() {
             if (!gameStarted || isMultiplayer) return;
             if (red.weapon === 'tnt' && red.tntCooldown <= 0) {
@@ -848,7 +964,6 @@
             }
         }
         
-        // ==================== ОБНОВЛЕНИЕ ====================
         function updateCooldowns() {
             [blue, red].forEach(p => {
                 if (p.tntCooldown > 0) p.tntCooldown--;
@@ -884,7 +999,6 @@
             
             const attackNow = keys.space || attackPressed;
             
-            // Лук
             if (player.weapon === 'bow') {
                 if (attackNow && player.bowCooldown <= 0) {
                     if (!player.bowCharging) { player.bowCharging = true; player.bowCharge = 0; player.bowTarget = { x: opponent.x, y: opponent.y }; }
@@ -895,7 +1009,6 @@
                 }
             }
             
-            // Щит
             if (player.weapon === 'shield') {
                 if (attackNow && player.shieldCooldown <= 0 && player.shieldStamina > 0) {
                     player.shieldActive = true; player.shieldStamina--;
@@ -905,7 +1018,6 @@
                 }
             }
             
-            // Одноразовые атаки
             const attackEdge = attackNow && !spacePressed;
             if (attackEdge) {
                 if (player.weapon === 'tnt' && player.tntCooldown <= 0) {
@@ -925,7 +1037,6 @@
         }
         
         function updateProjectiles() {
-            // Blaze balls
             blazeBalls = blazeBalls.filter(b => {
                 if (b.homingTarget) {
                     const dx = b.homingTarget.x - b.x, dy = b.homingTarget.y - b.y, dist = Math.hypot(dx, dy);
@@ -943,7 +1054,6 @@
                 return true;
             });
             
-            // Arrows
             arrows = arrows.filter(a => {
                 if (a.homingTarget) {
                     const dx = a.homingTarget.x - a.x, dy = a.homingTarget.y - a.y, dist = Math.hypot(dx, dy);
@@ -961,7 +1071,6 @@
                 return true;
             });
             
-            // Bell waves
             bellWaves = bellWaves.filter(w => {
                 w.radius += 12;
                 w.life = Math.max(0, 1 - w.radius / w.maxRadius);
@@ -978,7 +1087,6 @@
                 return true;
             });
             
-            // TNT
             tntMarks = tntMarks.filter(m => {
                 m.timer--;
                 if (m.timer <= 0) {
@@ -997,7 +1105,6 @@
                 return true;
             });
             
-            // Poison
             poisonClouds = poisonClouds.filter(c => {
                 c.timer--;
                 if (c.timer <= 0) return false;
@@ -1011,7 +1118,6 @@
                 return true;
             });
             
-            // Hooks
             [blueHook, redHook].forEach(h => {
                 if (!h) return;
                 if (h.returning) {
@@ -1041,7 +1147,6 @@
                 if (h.bounces >= CONFIG.MAX_BOUNCES) h.returning = true;
             });
             
-            // Axe
             [blue, red].forEach(o => {
                 if (o.weapon !== 'axe') return;
                 let ax = o.x + Math.cos(axeAngle) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_X;
@@ -1106,12 +1211,11 @@
                 clampInBox(red, true);
             }
             
-            if (isHost || !isMultiplayer) {
+            if (!isMultiplayer || playerRole === 'blue') {
                 for(let i=0;i<5;i++) { handleCollision(); clampInBox(blue); clampInBox(red); }
             }
         }
         
-        // ==================== ОТРИСОВКА ====================
         function drawWeapon(x, y, facing, type, isAxe=false, axeX=0, axeY=0) {
             ctx.save();
             ctx.translate(isAxe ? axeX : x, isAxe ? axeY : y);
@@ -1138,7 +1242,6 @@
         function drawPlayer(p, col, scol, shcol) {
             const R = CONFIG.PLAYER_RADIUS;
             
-            // Эффект при попадании
             if (p.hitEffect > 0) {
                 ctx.shadowColor = '#FF0000';
                 ctx.shadowBlur = 20;
@@ -1165,7 +1268,6 @@
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; 
             ctx.fillText(Math.floor(p.hp), p.x, p.y);
             
-            // Стержни ифрита
             if (p.weapon === 'blaze') {
                 const angle = p.blazeAngle || 0;
                 for (let i = 0; i < 3; i++) {
@@ -1190,23 +1292,19 @@
         }
         
         function draw() {
-            // Фон
             const grad = ctx.createRadialGradient(200,150,50,350,350,500);
             grad.addColorStop(0,'#0a1622'); grad.addColorStop(1,'#03080e');
             ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
             
-            // Звёзды
             ctx.fillStyle = '#e0e8ff';
             for(let i=0;i<40;i++) { if(i%2===0) continue; ctx.fillRect(30+(i*17)%W,20+(i*23)%H,2,2); }
             
-            // Арена
             ctx.fillStyle = '#d6eaf8'; ctx.fillRect(BOX.x,BOX.y,BOX.w,BOX.h);
             ctx.strokeStyle = '#85c1e9'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(BOX.x+BOX.w/2,BOX.y); ctx.lineTo(BOX.x+BOX.w/2,BOX.y+BOX.h); ctx.stroke();
             ctx.beginPath(); ctx.arc(BOX.x+BOX.w/2,BOX.y+BOX.h/2,50,0,2*Math.PI); ctx.stroke();
             ctx.strokeStyle = '#1e3349'; ctx.lineWidth = 5; ctx.strokeRect(BOX.x,BOX.y,BOX.w,BOX.h);
             
-            // Эффекты
             blazeBalls.forEach(b => {
                 const img = weaponImages.fire_charge;
                 if (imageLoaded.fire_charge && img.complete) {
@@ -1237,7 +1335,6 @@
             drawPlayer(blue,'#4a8ec9','#1e4f7a','#3DFFF0');
             drawPlayer(red,'#c95a5a','#8a2e2e','#FF4444');
             
-            // Топоры
             [blue, red].forEach(p => {
                 if (p.weapon !== 'axe') return;
                 let ax = p.x + Math.cos(axeAngle) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_X;
@@ -1254,13 +1351,11 @@
                 ctx.fillText(txt,W/2,H/2); ctx.shadowBlur = 0;
             }
             
-            // Дебаг
             let status = `${blue.weapon.toUpperCase()}: ${blue[blue.weapon+'Cooldown']>0 ? (blue[blue.weapon+'Cooldown']/60).toFixed(1)+'s' : 'READY'}`;
             if (blue.weapon === 'bell') status = `BELL: ${blue.bellCooldown>0 ? (blue.bellCooldown/60).toFixed(1)+'s' : (blue.hitWall?'ГОТОВ!':'иди к стене')}`;
             debugEl.textContent = status;
         }
         
-        // ==================== ИГРОВОЙ ЦИКЛ ====================
         function gameLoop(ts) {
             if (lastTimestamp===0) { lastTimestamp=ts; animationId=requestAnimationFrame(gameLoop); return; }
             const dt = Math.min(33, ts-lastTimestamp); lastTimestamp=ts;
@@ -1273,8 +1368,8 @@
                 red.facing = blue.x > red.x ? 1 : -1;
                 botAI();
                 handleInput();
-                if (isHost || !isMultiplayer) updateProjectiles();
-                if (isMultiplayer && conn && conn.open) sendGameState();
+                if (!isMultiplayer || playerRole === 'blue') updateProjectiles();
+                if (isMultiplayer) sendGameState();
             }
             
             draw();
@@ -1287,7 +1382,6 @@
             gameStarted=false; lastTimestamp=0;
         }
         
-        // ==================== УПРАВЛЕНИЕ ====================
         function keyHandler(e) {
             const k = e.key;
             if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(k)) e.preventDefault();
@@ -1343,7 +1437,11 @@
         function initEvents() {
             window.addEventListener('keydown', keyHandler);
             window.addEventListener('keyup', keyHandler);
-            canvas.addEventListener('click', () => { if (blue.hp>0 && red.hp>0) gameStarted=true; else { blue.hp=red.hp=100; gameStarted=true; } lastTimestamp=performance.now(); });
+            canvas.addEventListener('click', () => { 
+                if (blue.hp>0 && red.hp>0) gameStarted=true; 
+                else { blue.hp=red.hp=100; gameStarted=true; } 
+                lastTimestamp=performance.now(); 
+            });
             canvas.addEventListener('contextmenu', e => e.preventDefault());
             
             document.querySelectorAll('.weapon-option').forEach(btn => {
@@ -1362,8 +1460,14 @@
             });
             
             document.getElementById('resetButton').addEventListener('click', resetGame);
+            
+            // Firebase кнопки
+            document.getElementById('hostBtn').addEventListener('click', createRoom);
+            document.getElementById('refreshBtn').addEventListener('click', refreshRoomList);
+            document.getElementById('leaveBtn').addEventListener('click', leaveRoom);
+            
             initJoystick();
-            initMultiplayer();
+            refreshRoomList(); // Первоначальная загрузка списка
         }
         
         function start() { initEvents(); animationId = requestAnimationFrame(gameLoop); }
