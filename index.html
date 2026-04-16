@@ -634,6 +634,21 @@
             codeDisplay.textContent = roomId;
             statusEl.textContent = '⏳ Ожидание игрока...';
             leaveBtn.style.display = 'inline-block';
+            
+            // 🔥 СЛУШАЕМ КРАСНОГО ИГРОКА ПОСТОЯННО
+            roomRef.child('gameState/red').on('value', (snapshot) => {
+                const redState = snapshot.val();
+                if (redState && playerRole === 'blue' && opponentConnected) {
+                    red.x = redState.x;
+                    red.y = redState.y;
+                    red.vx = redState.vx;
+                    red.vy = redState.vy;
+                    red.hp = redState.hp;
+                    red.weapon = redState.weapon;
+                    red.facing = redState.facing;
+                    red.shieldActive = redState.shieldActive;
+                }
+            });
         }).catch(err => {
             statusEl.textContent = '❌ Ошибка создания';
             console.error(err);
@@ -643,16 +658,6 @@
             if (snapshot.val()?.connected) {
                 opponentConnected = true;
                 statusEl.textContent = '🎮 Игрок подключился!';
-            }
-        });
-        
-        roomRef.child('gameState/red').on('value', (snapshot) => {
-            const redState = snapshot.val();
-            if (redState && playerRole === 'blue' && opponentConnected) {
-                red.x = redState.x; red.y = redState.y;
-                red.vx = redState.vx; red.vy = redState.vy;
-                red.hp = redState.hp; red.weapon = redState.weapon;
-                red.facing = redState.facing; red.shieldActive = redState.shieldActive;
             }
         });
         
@@ -688,17 +693,26 @@
             statusEl.textContent = '✅ Подключено!';
             leaveBtn.style.display = 'inline-block';
             
+            // 🔥 СЛУШАЕМ ВСЁ СОСТОЯНИЕ ОТ ХОСТА
             roomRef.child('gameState').on('value', (snapshot) => {
                 const state = snapshot.val();
                 if (state && playerRole === 'red') {
                     if (state.blue) {
-                        blue.x = state.blue.x; blue.y = state.blue.y;
-                        blue.vx = state.blue.vx; blue.vy = state.blue.vy;
-                        blue.hp = state.blue.hp; blue.weapon = state.blue.weapon;
-                        blue.facing = state.blue.facing; blue.shieldActive = state.blue.shieldActive;
+                        blue.x = state.blue.x;
+                        blue.y = state.blue.y;
+                        blue.vx = state.blue.vx;
+                        blue.vy = state.blue.vy;
+                        blue.hp = state.blue.hp;
+                        blue.weapon = state.blue.weapon;
+                        blue.facing = state.blue.facing;
+                        blue.shieldActive = state.blue.shieldActive;
                     }
-                    if (state.red) red.hp = state.red.hp;
-                    if (state.axeAngle !== undefined) axeAngle = state.axeAngle;
+                    if (state.red) {
+                        red.hp = state.red.hp;
+                    }
+                    if (state.axeAngle !== undefined) {
+                        axeAngle = state.axeAngle;
+                    }
                     if (state.projectiles) {
                         arrows = state.projectiles.arrows || [];
                         blazeBalls = state.projectiles.blazeBalls || [];
@@ -752,6 +766,7 @@
     
     function sendGameState() {
         if (!roomRef || !playerRole) return;
+        
         if (playerRole === 'blue') {
             roomRef.child('gameState').update({
                 blue: { x: blue.x, y: blue.y, vx: blue.vx, vy: blue.vy, hp: blue.hp, weapon: blue.weapon, facing: blue.facing, shieldActive: blue.shieldActive },
@@ -760,8 +775,10 @@
                 projectiles: { arrows, blazeBalls, tntMarks, poisonClouds, bellWaves }
             });
         } else {
+            // 🔥 КРАСНЫЙ ОТПРАВЛЯЕТ ТОЛЬКО СЕБЯ
             roomRef.child('gameState/red').update({
-                x: red.x, y: red.y, vx: red.vx, vy: red.vy, hp: red.hp, weapon: red.weapon, facing: red.facing, shieldActive: red.shieldActive
+                x: red.x, y: red.y, vx: red.vx, vy: red.vy,
+                hp: red.hp, weapon: red.weapon, facing: red.facing, shieldActive: red.shieldActive
             });
         }
     }
