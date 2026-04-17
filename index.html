@@ -322,7 +322,8 @@
                 owner: owner===blue?'blue':'red', 
                 damage, 
                 homingTarget: owner===blue?red:blue, 
-                life: 180 
+                life: 180,
+                type: 'arrow'
             };
             
             arrows.push(arrow);
@@ -345,7 +346,8 @@
                 owner: owner === blue ? 'blue' : 'red', 
                 damage: CONFIG.BELL_WAVE_DAMAGE, 
                 damaged: new Set(), 
-                life: 1.0 
+                life: 1.0,
+                type: 'bellWave'
             };
             
             bellWaves.push(wave);
@@ -368,7 +370,8 @@
                     vy: Math.sin(rad) * CONFIG.BLAZE_SPEED, 
                     owner: owner === blue ? 'blue' : 'red', 
                     damage: CONFIG.BLAZE_DAMAGE, 
-                    life: 150 
+                    life: 150,
+                    type: 'blazeBall'
                 };
                 
                 blazeBalls.push(ball);
@@ -385,12 +388,13 @@
             if (!isMultiplayer || !roomRef) return;
             
             const projData = { ...proj };
-            delete projData.damaged; // Set не сериализуется
+            delete projData.damaged; // Set не серизуется
+            projData.timestamp = firebase.database.ServerValue.TIMESTAMP;
             
             const projRef = roomRef.child(`${playerRole}Projectiles`).child(type);
             projRef.push(projData);
             
-            // Автоматическая очистка старых проектайлов
+            // Автоматическая очистка старых проектов
             projRef.once('value', (snapshot) => {
                 const projectiles = snapshot.val() || {};
                 const now = Date.now();
@@ -407,11 +411,13 @@
             if (!gameStarted || isMultiplayer) return;
             
             if (red.weapon === 'tnt' && red.tntCooldown <= 0) { 
-                tntMarks.push({ 
+                const tnt = {
                     x: Math.max(BOX.x, Math.min(BOX.x+BOX.w, red.x+red.facing*CONFIG.BOT_TNT_DISTANCE)), 
-                    y: red.y, owner: 'red', timer: 60 
-                }); 
-                red.tntCooldown = CONFIG.TNT_COOLDOWN; 
+                    y: red.y, owner: 'red', timer: 60,
+                    type: 'tnt'
+                };
+                tntMarks.push(tnt); 
+                red.tntCooldown = CONFIG.TNT_COOLDOWN;
             }
             
             if (red.weapon === 'rod' && red.rodCooldown <= 0 && !redHook) {
@@ -543,7 +549,8 @@
                         x: Math.max(BOX.x, Math.min(BOX.x+BOX.w, player.x+player.facing*80)), 
                         y: player.y, 
                         owner: player === blue ? 'blue' : 'red', 
-                        timer: 60 
+                        timer: 60,
+                        type: 'tnt'
                     };
                     tntMarks.push(tnt); 
                     player.tntCooldown = CONFIG.TNT_COOLDOWN;
@@ -635,7 +642,7 @@
                             applyDamage(t, dmg, m.owner);
                         }
                     });
-                    const cloud = { x: m.x, y: m.y, timer: CONFIG.POISON_DURATION, owner: m.owner };
+                    const cloud = { x: m.x, y: m.y, timer: CONFIG.POISON_DURATION, owner: m.owner, type: 'poisonCloud' };
                     poisonClouds.push(cloud);
                     
                     if (isMultiplayer && playerRole === m.owner) {
@@ -738,11 +745,20 @@
         
         // ==================== ОБНОВЛЕНИЕ ДВИЖЕНИЯ ====================
         function updateMovement(dt) {
-            if (!gameStarted) return; 
+            if (!gameStarted) return;
+            
+            // Проверка окончания игры
             if (blue.hp <= 0 || red.hp <= 0) { 
-                gameStarted = false; 
+                gameStarted = false;
+                playersReady = { blue: false, red: false };
+                
                 if (isMultiplayer) {
-                    roomRef.child('gameStarted').set(false);
+                    // Сбрасываем состояние готовности на сервере
+                    roomRef.update({
+                        gameStarted: false,
+                        'host/ready': false,
+                        'guest/ready': false
+                    });
                 }
                 return; 
             }
@@ -1159,26 +1175,29 @@
                 }
             });
             
-            // Отслеживание проектайлов оппонента
+            // Отслеживание проектов оппонента
             roomRef.child(`${opponentRole}Projectiles`).on('child_added', (snapshot) => {
-                const proj = snapshot.val();
-                if (proj && opponentConnected) {
-                    proj.timestamp = proj.timestamp || Date.now();
+                const projData = snapshot.val();
+                if (projData && opponentConnected) {
+                    // Получаем тип снаряда из ключа
+                    const projType = snapshot.key;
                     
-                    if (proj.type === 'arrow') {
-                        arrows.push(proj);
-                    } else if (proj.type === 'blazeBall') {
-                        blazeBalls.push(proj);
-                    } else if (proj.type === 'tnt') {
-                        tntMarks.push(proj);
-                    } else if (proj.type === 'poisonCloud') {
-                        poisonClouds.push(proj);
-                    } else if (proj.type === 'bellWave') {
-                        proj.damaged = new Set();
-                        bellWaves.push(proj);
+                    projData.timestamp = projData.timestamp || Date.now();
+                    
+                    if (projType === 'arrow') {
+                        arrows.push(projData);
+                    } else if (projType === 'blazeBall') {
+                        blazeBalls.push(projData);
+                    } else if (projType === 'tnt') {
+                        tntMarks.push(projData);
+                    } else if (projType === 'poisonCloud') {
+                        poisonClouds.push(projData);
+                    } else if (projType === 'bellWave') {
+                        projData.damaged = new Set();
+                        bellWaves.push(projData);
                     }
                     
-                    // Удаление старых проектайлов
+                    // Удаление старых проектов
                     snapshot.ref.remove();
                 }
             });
@@ -1208,6 +1227,7 @@
                     statusEl.textContent = '❌ Оппонент отключился';
                     gameStarted = false;
                     opponentConnected = false;
+                    playersReady = { blue: false, red: false };
                 }
             });
         }
@@ -1322,13 +1342,18 @@
         function setReady() {
             if (!isMultiplayer || !roomRef) return;
             
+            // Переключаем готовность вместо простого true
             const readyRef = roomRef.child(`${playerRole}/ready`);
-            readyRef.set(true);
-            statusEl.textContent = '⏳ Ожидание второго игрока...';
+            readyRef.once('value', (snap) => {
+                const currentReady = snap.val() || false;
+                readyRef.set(!currentReady);
+                statusEl.textContent = !currentReady ? '⏳ Ожидание второго игрока...' : 'Ожидание готовности...';
+            });
         }
         
         function sendGameState() {
             if (!roomRef || !playerRole || !opponentConnected) return;
+            if (!gameStarted) return; // Не отправляем состояние если игра не идет
             
             const now = performance.now();
             if (now - lastSyncTime < SYNC_INTERVAL) return;
@@ -1396,8 +1421,21 @@
             playersReady = { blue: false, red: false };
             
             if (isMultiplayer && playerRole === 'blue') {
-                roomRef.child('gameStarted').set(false);
+                // Сбрасываем всё состояние комнаты
+                roomRef.update({
+                    blue: serializePlayer(blue),
+                    red: serializePlayer(red),
+                    'host/ready': false,
+                    'guest/ready': false,
+                    gameStarted: false,
+                    blueProjectiles: null,
+                    redProjectiles: null,
+                    axeAngle: 0
+                });
             }
+            
+            // Сбрасываем угол топора локально
+            axeAngle = 0;
         }
         
         // ==================== УПРАВЛЕНИЕ ====================
