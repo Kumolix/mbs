@@ -180,7 +180,7 @@
         let gameStarted = false; let animationId = null; let lastTimestamp = 0;
         let roomId = null; let roomRef = null; let playerRole = null; let isMultiplayer = false;
         let opponentConnected = false; let playersReady = { blue: false, red: false };
-        let lastSyncTime = 0; const SYNC_INTERVAL = 50; // Синхронизация каждые 50мс
+        let lastSyncTime = 0; const SYNC_INTERVAL = 50;
         
         let blue, red;
         let tntMarks = [], poisonClouds = [], wallMarks = [], arrows = [], bellWaves = [], blazeBalls = [];
@@ -244,7 +244,6 @@
             
             let dmg = amount, ref = 0;
             
-            // Обработка щита
             if (target === blue && blue.shieldActive) { 
                 ref = Math.floor(amount * CONFIG.SHIELD_REFLECT_PERCENT); 
                 dmg = amount - ref; 
@@ -268,7 +267,6 @@
             
             target.hp = Math.max(0, target.hp - dmg);
             
-            // Синхронизация HP в мультиплеере
             if (isMultiplayer) {
                 const targetRole = target === blue ? 'blue' : 'red';
                 const sourceRole = source;
@@ -332,7 +330,6 @@
             owner.bowCharge = 0; 
             owner.bowTarget = null;
             
-            // Синхронизация в мультиплеере
             if (isMultiplayer && playerRole === arrow.owner) {
                 syncProjectile('arrow', arrow);
             }
@@ -388,13 +385,12 @@
             if (!isMultiplayer || !roomRef) return;
             
             const projData = { ...proj };
-            delete projData.damaged; // Set не серизуется
+            delete projData.damaged;
             projData.timestamp = firebase.database.ServerValue.TIMESTAMP;
             
             const projRef = roomRef.child(`${playerRole}Projectiles`).child(type);
             projRef.push(projData);
             
-            // Автоматическая очистка старых проектов
             projRef.once('value', (snapshot) => {
                 const projectiles = snapshot.val() || {};
                 const now = Date.now();
@@ -511,7 +507,6 @@
                 } 
             }
             
-            // Обработка оружия
             const attackPressedNow = keys.space || attackPressed;
             
             if (player.weapon === 'bow') { 
@@ -734,7 +729,6 @@
                 } 
             }); 
             
-            // Только хост обновляет угол топора
             if (!isMultiplayer || playerRole === 'blue') {
                 axeAngle += CONFIG.AXE_ROTATION_SPEED;
                 if (isMultiplayer) {
@@ -753,12 +747,15 @@
                 playersReady = { blue: false, red: false };
                 
                 if (isMultiplayer) {
-                    // Сбрасываем состояние готовности на сервере
-                    roomRef.update({
+                    // Сбрасываем состояние готовности, но НЕ connected
+                    const updates = {
                         gameStarted: false,
                         'host/ready': false,
-                        'guest/ready': false
-                    });
+                        'guest/ready': false,
+                        blue: serializePlayer(blue),
+                        red: serializePlayer(red)
+                    };
+                    roomRef.update(updates);
                 }
                 return; 
             }
@@ -1090,6 +1087,30 @@
         const statusEl = document.getElementById('connectionStatus'); 
         const roomListEl = document.getElementById('roomList');
         
+        function serializePlayer(p) {
+            return {
+                x: p.x, y: p.y, vx: p.vx, vy: p.vy, hp: p.hp,
+                weapon: p.weapon, facing: p.facing,
+                shieldActive: p.shieldActive, shieldStamina: p.shieldStamina,
+                bowCharging: p.bowCharging, bowCharge: p.bowCharge,
+                hitWall: p.hitWall
+            };
+        }
+        
+        function deserializePlayer(p, data) {
+            if (!data) return;
+            p.x = data.x; p.y = data.y; 
+            p.vx = data.vx; p.vy = data.vy; 
+            p.hp = data.hp;
+            p.weapon = data.weapon; 
+            p.facing = data.facing;
+            p.shieldActive = data.shieldActive; 
+            p.shieldStamina = data.shieldStamina;
+            p.bowCharging = data.bowCharging; 
+            p.bowCharge = data.bowCharge;
+            p.hitWall = data.hitWall;
+        }
+        
         function createRoom() {
             roomId = generateRoomCode(); 
             roomRef = db.ref('rooms/' + roomId);
@@ -1116,30 +1137,6 @@
             
             roomRef.child('host/connected').onDisconnect().remove();
             roomRef.child('host').onDisconnect().remove();
-        }
-        
-        function serializePlayer(p) {
-            return {
-                x: p.x, y: p.y, vx: p.vx, vy: p.vy, hp: p.hp,
-                weapon: p.weapon, facing: p.facing,
-                shieldActive: p.shieldActive, shieldStamina: p.shieldStamina,
-                bowCharging: p.bowCharging, bowCharge: p.bowCharge,
-                hitWall: p.hitWall
-            };
-        }
-        
-        function deserializePlayer(p, data) {
-            if (!data) return;
-            p.x = data.x; p.y = data.y; 
-            p.vx = data.vx; p.vy = data.vy; 
-            p.hp = data.hp;
-            p.weapon = data.weapon; 
-            p.facing = data.facing;
-            p.shieldActive = data.shieldActive; 
-            p.shieldStamina = data.shieldStamina;
-            p.bowCharging = data.bowCharging; 
-            p.bowCharge = data.bowCharge;
-            p.hitWall = data.hitWall;
         }
         
         function setupRoomListeners() {
@@ -1179,9 +1176,7 @@
             roomRef.child(`${opponentRole}Projectiles`).on('child_added', (snapshot) => {
                 const projData = snapshot.val();
                 if (projData && opponentConnected) {
-                    // Получаем тип снаряда из ключа
                     const projType = snapshot.key;
-                    
                     projData.timestamp = projData.timestamp || Date.now();
                     
                     if (projType === 'arrow') {
@@ -1197,12 +1192,11 @@
                         bellWaves.push(projData);
                     }
                     
-                    // Удаление старых проектов
                     snapshot.ref.remove();
                 }
             });
             
-            // Отслеживание угла топора (только для красного игрока)
+            // Отслеживание угла топора
             if (playerRole === 'red') {
                 roomRef.child('axeAngle').on('value', (snapshot) => {
                     const angle = snapshot.val();
@@ -1336,13 +1330,24 @@
             roomListEl.style.display = 'none';
             
             resetPlayers();
-            resetGame();
+            
+            // Локальный сброс
+            blueHook = redHook = null;
+            tntMarks = [];
+            poisonClouds = [];
+            wallMarks = [];
+            arrows = [];
+            bellWaves = [];
+            blazeBalls = [];
+            axeCooldown = 0;
+            gameStarted = false;
+            lastTimestamp = 0;
+            axeAngle = 0;
         }
         
         function setReady() {
             if (!isMultiplayer || !roomRef) return;
             
-            // Переключаем готовность вместо простого true
             const readyRef = roomRef.child(`${playerRole}/ready`);
             readyRef.once('value', (snap) => {
                 const currentReady = snap.val() || false;
@@ -1353,7 +1358,7 @@
         
         function sendGameState() {
             if (!roomRef || !playerRole || !opponentConnected) return;
-            if (!gameStarted) return; // Не отправляем состояние если игра не идет
+            if (!gameStarted) return;
             
             const now = performance.now();
             if (now - lastSyncTime < SYNC_INTERVAL) return;
@@ -1361,6 +1366,46 @@
             
             const playerState = serializePlayer(playerRole === 'blue' ? blue : red);
             roomRef.child(playerRole).update(playerState);
+        }
+        
+        function resetGame() {
+            resetPlayers();
+            blueHook = redHook = null;
+            tntMarks = [];
+            poisonClouds = [];
+            wallMarks = [];
+            arrows = [];
+            bellWaves = [];
+            blazeBalls = [];
+            axeCooldown = 0;
+            gameStarted = false;
+            lastTimestamp = 0;
+            playersReady = { blue: false, red: false };
+            
+            if (isMultiplayer) {
+                if (playerRole === 'blue') {
+                    // Хост сбрасывает состояние, но НЕ удаляет connected флаги
+                    roomRef.update({
+                        blue: serializePlayer(blue),
+                        red: serializePlayer(red),
+                        'host/ready': false,
+                        'guest/ready': false,
+                        gameStarted: false,
+                        blueProjectiles: null,
+                        redProjectiles: null,
+                        axeAngle: 0
+                    });
+                } else {
+                    // Гость сбрасывает только свой ready и позицию
+                    roomRef.update({
+                        [`${playerRole}`]: serializePlayer(playerRole === 'blue' ? blue : red),
+                        [`${playerRole}/ready`]: false
+                    });
+                }
+                statusEl.textContent = '🔄 Ожидание готовности...';
+            }
+            
+            axeAngle = 0;
         }
         
         // ==================== ИГРОВОЙ ЦИКЛ ====================
@@ -1384,7 +1429,6 @@
                 botAI();
                 handleInput();
                 
-                // Только хост или в одиночной игре обновляет снаряды
                 if (!isMultiplayer || playerRole === 'blue') {
                     updateBlazeBalls();
                     updateBellWaves();
@@ -1404,38 +1448,6 @@
             
             draw();
             animationId = requestAnimationFrame(gameLoop);
-        }
-        
-        function resetGame() {
-            resetPlayers();
-            blueHook = redHook = null;
-            tntMarks = [];
-            poisonClouds = [];
-            wallMarks = [];
-            arrows = [];
-            bellWaves = [];
-            blazeBalls = [];
-            axeCooldown = 0;
-            gameStarted = false;
-            lastTimestamp = 0;
-            playersReady = { blue: false, red: false };
-            
-            if (isMultiplayer && playerRole === 'blue') {
-                // Сбрасываем всё состояние комнаты
-                roomRef.update({
-                    blue: serializePlayer(blue),
-                    red: serializePlayer(red),
-                    'host/ready': false,
-                    'guest/ready': false,
-                    gameStarted: false,
-                    blueProjectiles: null,
-                    redProjectiles: null,
-                    axeAngle: 0
-                });
-            }
-            
-            // Сбрасываем угол топора локально
-            axeAngle = 0;
         }
         
         // ==================== УПРАВЛЕНИЕ ====================
@@ -1560,7 +1572,6 @@
                         red.shieldActive = false;
                     }
                     
-                    // Синхронизация в мультиплеере
                     if (isMultiplayer && ((p === 'blue' && playerRole === 'blue') || (p === 'red' && playerRole === 'red'))) {
                         roomRef.child(`${playerRole}/weapon`).set(w);
                     }
