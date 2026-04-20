@@ -10,49 +10,224 @@
     <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database-compat.js"></script>
     
     <style>
-        /* ========== СТИЛИ ========== */
-        :root { --bg-dark: #0a0f18; --bg-panel: #0d1622; --border-light: #2a4560; --text-bright: #e0e8ff; --accent-blue: #4a8ec9; --box-border: #1e3349; --btn-bg: #1a2c3d; --btn-active: #3c6b9c; }
+        /* ========== СТИЛИ: НОЧНОЕ НЕБО + БЕЛЫЕ РАМКИ ========== */
+        :root { 
+            --bg-dark: #0a0a0a;
+            --bg-panel: #0f0f0f;
+            --border-light: #c0c0c0;
+            --text-bright: #ffffff;
+            --text-dim: #aaaaaa;
+            --accent-blue: #6a9ec9;
+            --box-border: #888888;
+            --btn-bg: #2a2a2a;
+            --btn-hover: #4a4a4a;
+            --btn-active: #ffffff;
+            --btn-text: #000000;
+            --toggle-off: #8b3a3a;
+            --toggle-on: #3a6b3a;
+        }
         * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; min-height: 100vh; background: var(--bg-dark); display: flex; justify-content: center; align-items: center; font-family: 'Courier New', Courier, monospace; padding: 5px; touch-action: pan-y; }
-        .game-container { display: flex; flex-direction: column; align-items: center; gap: 5px; max-width: 750px; width: 100%; }
-        .game-wrapper { background: var(--bg-panel); padding: 10px 12px 12px 12px; border-radius: 24px; box-shadow: 0 20px 30px rgba(0,0,0,0.7); border: 1px solid var(--border-light); width: 100%; }
-        .game-title { text-align: center; font-size: 20px; font-weight: bold; color: var(--text-bright); text-shadow: 0 0 10px var(--accent-blue); letter-spacing: 2px; margin-bottom: 8px; animation: glow 2s ease-in-out infinite alternate; }
-        @keyframes glow { from { text-shadow: 0 0 10px var(--accent-blue); } to { text-shadow: 0 0 20px var(--accent-blue), 0 0 30px #6ab0ff; } }
+        body { 
+            margin: 0; min-height: 100vh; 
+            background: var(--bg-dark);
+            display: flex; justify-content: center; align-items: center; 
+            font-family: 'Courier New', Courier, monospace; padding: 5px; touch-action: pan-y;
+            position: relative;
+            overflow-x: hidden;
+        }
+        /* Звёзды на фоне (только за пределами игры) */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 15% 20%, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 75% 15%, #fff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 25% 85%, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 85% 90%, #fff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 5% 50%, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 95% 40%, #fff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 45% 10%, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 65% 80%, #fff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 10% 95%, #fff, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 90% 5%, #fff, rgba(0,0,0,0));
+            background-size: 200px 200px;
+            background-repeat: repeat;
+            opacity: 0.7;
+            pointer-events: none;
+            z-index: 0;
+            animation: twinkle 4s ease-in-out infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.4; }
+            100% { opacity: 0.9; }
+        }
+        .game-container { 
+            display: flex; flex-direction: column; align-items: center; gap: 5px; 
+            max-width: 750px; width: 100%; position: relative; z-index: 1;
+        }
+        .game-wrapper { 
+            background: var(--bg-panel); padding: 10px 12px 12px 12px; 
+            border-radius: 24px; box-shadow: 0 20px 30px rgba(0,0,0,0.7); 
+            border: 1px solid var(--border-light); width: 100%; 
+        }
+        .game-title { 
+            text-align: center; font-size: 20px; font-weight: bold; color: var(--text-bright); 
+            letter-spacing: 2px; margin-bottom: 8px; 
+            animation: breathe 3s ease-in-out infinite;
+            text-shadow: none;
+        }
+        @keyframes breathe { 
+            0%, 100% { color: #ffffff; } 
+            50% { color: #aaaaaa; } 
+        }
         .canvas-container { position: relative; touch-action: none; }
-        canvas { display: block; margin: 0 auto; border-radius: 16px; box-shadow: 0 0 0 3px var(--box-border), inset 0 0 30px #000000; cursor: pointer; outline: none; width: 100%; height: auto; touch-action: none; }
+        canvas { 
+            display: block; margin: 0 auto; border-radius: 16px; 
+            box-shadow: 0 0 0 2px var(--box-border), inset 0 0 30px #000000; 
+            cursor: pointer; outline: none; width: 100%; height: auto; touch-action: none; 
+            background: #0a0a0a;
+        }
         .multiplayer-panel { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; justify-content: center; }
-        .multiplayer-btn { background: var(--btn-bg); border: none; padding: 8px 14px; border-radius: 25px; font-family: inherit; font-weight: bold; font-size: 14px; color: #ccdeee; box-shadow: inset 0 1px 3px black, 0 3px 0 #0c1822; cursor: pointer; transition: all 0.1s ease; border-bottom: 1px solid #5b8bb9; }
-        .multiplayer-btn.active { background: var(--btn-active); color: white; transform: translateY(2px); box-shadow: inset 0 2px 6px black, 0 1px 0 #1a3147; }
-        .code-input { background: #0e1a26; border: 1px solid #3d6688; padding: 8px 12px; border-radius: 25px; color: #e0e8ff; font-family: inherit; font-size: 14px; text-align: center; outline: none; }
-        .code-display { color: #FFD700; font-weight: bold; font-size: 18px; letter-spacing: 2px; }
-        .room-list { max-height: 150px; overflow-y: auto; background: #0a1622; border-radius: 15px; padding: 5px; margin-top: 5px; }
-        .room-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #1a2c3d; border-radius: 15px; margin-bottom: 5px; cursor: pointer; border: 1px solid #3d6688; }
-        .room-item:hover { background: #243b52; }
-        .room-code { font-weight: bold; color: #FFD700; font-size: 16px; }
-        .room-players { color: #8da9cc; font-size: 12px; }
+        .multiplayer-btn { 
+            background: var(--btn-bg); border: none; padding: 8px 14px; border-radius: 25px; 
+            font-family: inherit; font-weight: bold; font-size: 14px; color: var(--text-bright); 
+            box-shadow: inset 0 1px 3px black, 0 3px 0 #1a1a1a; cursor: pointer; 
+            transition: all 0.1s ease; border: 1px solid #444;
+        }
+        .multiplayer-btn:hover { background: var(--btn-hover); }
+        .multiplayer-btn.active { 
+            background: var(--btn-active); color: var(--btn-text); 
+            transform: translateY(2px); box-shadow: inset 0 2px 6px black, 0 1px 0 #1a1a1a; 
+        }
+        .code-input { 
+            background: #0e0e0e; border: 1px solid var(--border-light); padding: 8px 12px; 
+            border-radius: 25px; color: var(--text-bright); font-family: inherit; font-size: 14px; 
+            text-align: center; outline: none; 
+        }
+        .code-display { color: var(--accent-blue); font-weight: bold; font-size: 18px; letter-spacing: 2px; }
+        .room-list { max-height: 150px; overflow-y: auto; background: #0a0a0a; border-radius: 15px; padding: 5px; margin-top: 5px; }
+        .room-item { 
+            display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; 
+            background: #1a1a1a; border-radius: 15px; margin-bottom: 5px; cursor: pointer; 
+            border: 1px solid var(--border-light); 
+        }
+        .room-item:hover { background: #2a2a2a; }
+        .room-code { font-weight: bold; color: var(--accent-blue); font-size: 16px; }
+        .room-players { color: var(--text-dim); font-size: 12px; }
         .virtual-controls { position: relative; display: none; margin-top: 8px; height: 120px; touch-action: none; }
         .virtual-controls.visible { display: block; }
         .joystick-area { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); width: 120px; height: 120px; touch-action: none; }
-        .joystick-base { position: absolute; width: 100%; height: 100%; background: rgba(26, 44, 61, 0.7); border-radius: 50%; border: 3px solid #3d6688; box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 5px 0 #0c1822; backdrop-filter: blur(5px); }
-        .joystick-stick { position: absolute; width: 60px; height: 60px; background: var(--btn-active); border-radius: 50%; left: 50%; top: 50%; transform: translate(-50%, -50%); border: 2px solid #85c1e9; box-shadow: 0 0 15px #4a8ec9, inset 0 0 10px rgba(255,255,255,0.3); transition: box-shadow 0.1s; touch-action: none; }
-        .joystick-stick.active { box-shadow: 0 0 25px #6ab0ff, inset 0 0 15px rgba(255,255,255,0.5); }
+        .joystick-base { 
+            position: absolute; width: 100%; height: 100%; background: rgba(30, 30, 30, 0.7); 
+            border-radius: 50%; border: 2px solid var(--border-light); 
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 5px 0 #1a1a1a; backdrop-filter: blur(5px); 
+        }
+        .joystick-stick { 
+            position: absolute; width: 60px; height: 60px; background: #3c6b9c; /* СИНИЙ ДЖОЙСТИК */
+            border-radius: 50%; left: 50%; top: 50%; transform: translate(-50%, -50%); 
+            border: 2px solid var(--border-light); 
+            box-shadow: 0 0 15px rgba(255,255,255,0.1), inset 0 0 10px rgba(255,255,255,0.1); 
+            transition: box-shadow 0.1s; touch-action: none; 
+        }
+        .joystick-stick.active { box-shadow: 0 0 25px rgba(255,255,255,0.3), inset 0 0 15px rgba(255,255,255,0.2); }
         .attack-area { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 100px; height: 100px; touch-action: none; }
-        .attack-btn { width: 100%; height: 100%; background: #8b2e2e; border-radius: 50%; border: 3px solid #c95a5a; box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 5px 0 #5a1e1e; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold; text-transform: uppercase; backdrop-filter: blur(5px); transition: all 0.05s; touch-action: none; }
-        .attack-btn:active { transform: scale(0.95); box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 2px 0 #5a1e1e; background: #a33a3a; }
-        .control-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; }
-        .control-buttons { display: flex; gap: 8px; }
-        .control-btn { background: var(--btn-bg); border: none; padding: 8px 14px; border-radius: 25px; font-family: inherit; font-weight: bold; font-size: 14px; color: #ccdeee; box-shadow: inset 0 1px 3px black, 0 3px 0 #0c1822; cursor: pointer; transition: all 0.1s ease; border-bottom: 1px solid #5b8bb9; }
-        .control-btn:hover { background: #243b52; }
-        .control-btn.active { background: var(--btn-active); color: white; transform: translateY(2px); box-shadow: inset 0 2px 6px black, 0 1px 0 #1a3147; }
-        .reset-btn { background: #8b2e2e; border-bottom-color: #c95a5a; }
+        .attack-btn { 
+            width: 100%; height: 100%; background: var(--toggle-off); border-radius: 50%; 
+            border: 3px solid var(--border-light); 
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 5px 0 #4a1a1a; 
+            display: flex; align-items: center; justify-content: center; color: white; 
+            font-size: 24px; font-weight: bold; text-transform: uppercase; 
+            backdrop-filter: blur(5px); transition: all 0.05s; touch-action: none; 
+        }
+        .attack-btn:active { 
+            transform: scale(0.95); 
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 2px 0 #4a1a1a; 
+            background: #a33a3a; 
+        }
+        .control-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; gap: 8px; flex-wrap: wrap; }
+        .control-buttons { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .control-btn { 
+            background: var(--btn-bg); border: none; padding: 8px 14px; border-radius: 25px; 
+            font-family: inherit; font-weight: bold; font-size: 14px; color: var(--text-bright); 
+            box-shadow: inset 0 1px 3px black, 0 3px 0 #1a1a1a; cursor: pointer; 
+            transition: all 0.1s ease; border: 1px solid #444;
+        }
+        .control-btn:hover { background: var(--btn-hover); }
+        .control-btn.active { 
+            background: var(--btn-active); color: var(--btn-text); 
+            transform: translateY(2px); box-shadow: inset 0 2px 6px black, 0 1px 0 #1a1a1a; 
+        }
+        .reset-btn { background: #3a1a1a; border-color: #6b3a3a; }
+        .reset-btn:hover { background: #5a2a2a; }
+        
+        .powerup-toggle, .potato-toggle, .dev-toggle { display: flex; align-items: center; gap: 8px; margin-left: 5px; }
+        .toggle-label { color: var(--text-dim); font-size: 12px; font-weight: bold; }
+        .toggle-switch { 
+            position: relative; width: 50px; height: 24px; background: var(--toggle-off); 
+            border-radius: 12px; border: 1px solid var(--border-light); cursor: pointer; 
+            transition: all 0.2s; 
+        }
+        .toggle-switch.active { background: var(--toggle-on); }
+        .potato-toggle .toggle-switch.active { background: var(--toggle-on); }
+        .dev-toggle .toggle-switch.active { background: var(--toggle-on); }
+        .toggle-slider { 
+            position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; 
+            background: var(--text-bright); border-radius: 50%; transition: transform 0.2s; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5); 
+        }
+        .toggle-switch.active .toggle-slider { transform: translateX(26px); }
+        
         .weapon-panels { display: flex; justify-content: space-between; margin-top: 8px; gap: 10px; }
-        .weapon-menu { background: #0e1a26; padding: 5px 8px; border-radius: 40px; border: 1px solid #3d6688; box-shadow: inset 0 2px 5px #000000, 0 3px 0 #081016; display: flex; flex-wrap: wrap; gap: 5px; }
-        .weapon-option { background: var(--btn-bg); border: none; padding: 5px 10px; border-radius: 25px; font-family: inherit; font-weight: bold; font-size: 16px; color: #ccdeee; box-shadow: inset 0 1px 3px black, 0 2px 0 #0c1822; cursor: pointer; transition: all 0.1s ease; display: flex; align-items: center; gap: 3px; border-bottom: 1px solid #5b8bb9; }
-        .weapon-option.active { background: var(--btn-active); color: white; transform: translateY(1px); box-shadow: inset 0 2px 6px black, 0 1px 0 #1a3147; }
-        .weapon-label { color: #b6d0e8; font-size: 14px; margin-right: 3px; }
-        .debug-info { color: #6a8aaa; font-size: 10px; margin-top: 5px; text-align: center; }
-        .hint-bar { display: flex; justify-content: space-between; margin: 5px 3px 0 3px; color: #8da9cc; font-weight: bold; font-size: 11px; }
-        .status-badge { color: #4a8ec9; font-weight: bold; }
+        .weapon-menu { 
+            background: #0e0e0e; padding: 5px 8px; border-radius: 40px; 
+            border: 1px solid var(--border-light); 
+            box-shadow: inset 0 2px 5px #000000, 0 3px 0 #1a1a1a; 
+            display: flex; flex-wrap: wrap; gap: 5px; 
+        }
+        .weapon-option { 
+            background: var(--btn-bg); border: none; padding: 5px 10px; border-radius: 25px; 
+            font-family: inherit; font-weight: bold; font-size: 16px; color: var(--text-bright); 
+            box-shadow: inset 0 1px 3px black, 0 2px 0 #1a1a1a; cursor: pointer; 
+            transition: all 0.1s ease; display: flex; align-items: center; gap: 3px; 
+            border: 1px solid #444;
+        }
+        .weapon-option:hover { background: var(--btn-hover); }
+        .weapon-option.active { 
+            background: var(--btn-active); color: var(--btn-text); 
+            transform: translateY(1px); box-shadow: inset 0 2px 6px black, 0 1px 0 #1a1a1a; 
+        }
+        .weapon-label { color: var(--text-dim); font-size: 14px; margin-right: 3px; }
+        .debug-info { color: var(--text-dim); font-size: 10px; margin-top: 5px; text-align: center; }
+        .hint-bar { 
+            display: flex; justify-content: space-between; margin: 5px 3px 0 3px; 
+            color: var(--text-dim); font-weight: bold; font-size: 11px; 
+        }
+        .status-badge { color: var(--accent-blue); font-weight: bold; }
+        
+        /* Dev Mode панель */
+        .dev-panel { 
+            position: fixed; bottom: 10px; right: 10px; background: rgba(10, 10, 10, 0.95); 
+            border: 1px solid var(--border-light); border-radius: 15px; padding: 15px; 
+            color: var(--text-bright); font-family: 'Courier New', monospace; font-size: 12px; 
+            max-width: 300px; backdrop-filter: blur(5px); z-index: 1000; display: none; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5); 
+        }
+        .dev-panel.visible { display: block; }
+        .dev-panel h4 { margin: 0 0 10px 0; color: var(--accent-blue); text-align: center; }
+        .dev-panel button { 
+            background: #2a2a2a; border: 1px solid var(--border-light); color: white; 
+            padding: 5px 10px; border-radius: 5px; margin: 3px; cursor: pointer; 
+            font-family: inherit; font-size: 11px; 
+        }
+        .dev-panel button:hover { background: #4a4a4a; }
+        .dev-panel input { 
+            width: 60px; background: #0e0e0e; border: 1px solid var(--border-light); 
+            color: white; padding: 3px; border-radius: 3px; margin-left: 5px; 
+        }
+        .dev-panel .slider-container { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+        .dev-panel .slider-container input { flex: 1; }
+        .dev-panel .checkbox-group { display: flex; align-items: center; gap: 5px; margin: 5px 0; }
     </style>
 </head>
 <body>
@@ -60,7 +235,6 @@
     <div class="game-wrapper">
         <div class="game-title">⚔️ Minecraft Battle Simulator ⚔️</div>
         
-        <!-- Панель мультиплеера -->
         <div class="multiplayer-panel">
             <button class="multiplayer-btn" id="hostBtn">🎮 СОЗДАТЬ</button>
             <button class="multiplayer-btn" id="joinBtn">🔗 ПОДКЛЮЧИТЬСЯ</button>
@@ -71,7 +245,7 @@
             <span class="status-badge" id="connectionStatus"></span>
         </div>
         <div class="room-list" id="roomList" style="display:none;">
-            <div style="color:#6a8aaa;text-align:center;">Нажми "ОБНОВИТЬ"</div>
+            <div style="color:#aaa;text-align:center;">Нажми "ОБНОВИТЬ"</div>
         </div>
         
         <div class="canvas-container">
@@ -92,8 +266,29 @@
             <div class="control-buttons">
                 <button class="control-btn" id="joystickToggle">🎮 ДЖОЙСТИК</button>
                 <button class="control-btn reset-btn" id="resetButton">🔄 РЕСЕТ</button>
+                
+                <div class="powerup-toggle">
+                    <span class="toggle-label">⚡УСИЛЕНИЯ</span>
+                    <div class="toggle-switch" id="powerupToggle">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                
+                <div class="potato-toggle">
+                    <span class="toggle-label">🥔POTATO</span>
+                    <div class="toggle-switch" id="potatoToggle">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+                
+                <div class="dev-toggle">
+                    <span class="toggle-label">🛠️DEV</span>
+                    <div class="toggle-switch" id="devToggle">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
             </div>
-            <div class="debug-info" id="debugInfo">BLAZE: веер из 3 огней</div>
+            <div class="debug-info" id="debugInfo">🍎 Яблоко | 🪓 2x Топор | 💥 Урон о стену</div>
         </div>
         
         <div class="weapon-panels">
@@ -126,34 +321,130 @@
     </div>
 </div>
 
+<!-- Панель разработчика (БЕЗ КНОПОК СПАВНА БАФФОВ) -->
+<div class="dev-panel" id="devPanel">
+    <h4>🛠️ DEV MODE 🛠️</h4>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+            <b>Игроки</b><br>
+            <button id="devKillBlue">💀 Убить Синего</button>
+            <button id="devKillRed">💀 Убить Красного</button>
+            <button id="devHealBlue">💚 Лечить Синего</button>
+            <button id="devHealRed">💚 Лечить Красного</button>
+        </div>
+        <div>
+            <b>Режимы</b><br>
+            <button id="devGodBlue">✨ God Синий</button>
+            <button id="devGodRed">✨ God Красный</button>
+            <button id="devStopTime">⏸️ Стоп-время</button>
+            <button id="devResetTime">▶️ Сброс</button>
+        </div>
+    </div>
+    <div style="margin-top: 10px;">
+        <b>Скорость</b>
+        <div class="slider-container">
+            <span>🐌</span>
+            <input type="range" id="devSpeedSlider" min="0" max="3" step="0.1" value="1">
+            <span>🐇</span>
+        </div>
+        <div class="checkbox-group">
+            <input type="checkbox" id="devShowHitboxes"> <span>Хитбоксы</span>
+        </div>
+        <div class="checkbox-group">
+            <input type="checkbox" id="devNoCooldowns"> <span>Без кулдаунов</span>
+        </div>
+        <div class="checkbox-group">
+            <input type="checkbox" id="devInfiniteAmmo"> <span>Беск. патроны</span>
+        </div>
+    </div>
+    <div style="margin-top: 10px; text-align: right; color: var(--accent-blue); cursor: pointer;" id="devClosePanel">[Закрыть]</div>
+</div>
+
 <script>
     (function(){
         "use strict";
         
-        // ==================== КОНФИГУРАЦИЯ ====================
+        // ========== СЕКЦИЯ 1: КОНФИГУРАЦИЯ, РЕСУРСЫ И ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+        
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ('ontouchstart' in window);
+        
         const CONFIG = {
+            // Арена
             CANVAS_SIZE: 700, BOX_SIZE: 580, PLAYER_RADIUS: 33,
+            // Скорости
             MAX_SPEED: 450, MIN_SPEED: 140, RED_ACCEL: 1200, BLUE_ACCEL: 1600, FRICTION: 0.995,
+            WALL_DAMAGE_THRESHOLD: 540, WALL_DAMAGE_MIN: 5, WALL_DAMAGE_MAX: 10,
+            // ТНТ
             TNT_COOLDOWN: 600, TNT_RADIUS: 200, TNT_DAMAGE_MIN: 5, TNT_DAMAGE_MAX: 15,
             POISON_DURATION: 420, POISON_DAMAGE: 1,
+            // Удочка
             ROD_COOLDOWN: 180, HOOK_SPEED: 5.5, ROD_DAMAGE_PER_BOUNCE: 8, MAX_BOUNCES: 5,
-            AXE_COOLDOWN: 60, AXE_DAMAGE: 15, AXE_ORBIT_RADIUS: 55, AXE_ROTATION_SPEED: 0.0435,
-            AXE_KNOCKBACK: 400, AXE_HITBOX_RADIUS: 50, AXE_OFFSET_X: 15, AXE_OFFSET_Y: -10,
-            BOW_COOLDOWN: 60, BOW_MAX_CHARGE: 60, BOW_MIN_DAMAGE: 1, BOW_MAX_DAMAGE: 15,
-            ARROW_SPEED: 5, ARROW_HOMING_STRENGTH: 0.15,
+            // Топор (2 штуки, урон 10, БЕЗ СМЕЩЕНИЯ)
+            AXE_COOLDOWN: 60, AXE_DAMAGE: 10, AXE_ORBIT_RADIUS: 55, AXE_ROTATION_SPEED: 0.0435,
+            AXE_KNOCKBACK: 400, AXE_HITBOX_RADIUS: 50, AXE_OFFSET_X: 0, AXE_OFFSET_Y: 0,
+            // Лук
+            BOW_COOLDOWN: 45, BOW_MAX_CHARGE: 45, BOW_MIN_DAMAGE: 1, BOW_MAX_DAMAGE: 18,
+            ARROW_SPEED: 6, ARROW_HOMING_STRENGTH: 0.2,
+            // Щит
             SHIELD_MAX_STAMINA: 180, SHIELD_COOLDOWN: 300, SHIELD_REFLECT_PERCENT: 0.7, SHIELD_SPEED_MULTIPLIER: 0.6,
-            BELL_COOLDOWN: 120, BELL_WAVE_RADIUS: 250, BELL_WAVE_DAMAGE: 2, BELL_WALL_DAMAGE: 5, BELL_KNOCKBACK: 280,
+            // Колокол
+            BELL_COOLDOWN: 90, BELL_WAVE_RADIUS: 475, BELL_WAVE_DAMAGE: 5, BELL_KNOCKBACK: 500,
+            // Блейз
             BLAZE_COOLDOWN: 180, BLAZE_DAMAGE: 5, BLAZE_SPEED: 4, BLAZE_SPREAD: 25,
             BLAZE_ORBIT_RADIUS: 45, BLAZE_ROTATION_SPEED: 0.05,
-            BOT_SHOOT_CHANCE: 0.03, BOT_TNT_DISTANCE: 80
+            // Бот
+            BOT_SHOOT_CHANCE: 0.03, BOT_TNT_DISTANCE: 80,
+            // Усиления
+            POWERUP_SPAWN_CHANCE: 0.005, POWERUP_DURATION_MS: 10000, APPLE_HEAL: 5,
+            // Смерть
+            DEATH_DELAY: 60,
+            // Визуал
+            HIT_FLASH_DURATION: 6, LOW_HP_THRESHOLD: 15,
+            // Физика (будет переопределено potato mode)
+            PHYSICS_ITERATIONS: 5,
+            DEATH_PARTICLES: 16,
+            ENABLE_SHADOWS: true,
+            // Лимиты снарядов
+            MAX_ARROWS: 100, MAX_BLAZE_BALLS: 50, MAX_BELL_WAVES: 20
         };
         
-        // ==================== FIREBASE ====================
+        // Dev Mode
+        let devMode = false;
+        let devSpeedMultiplier = 1;
+        let devShowHitboxes = false;
+        let devNoCooldowns = false;
+        let devInfiniteAmmo = false;
+        let devTimeStopped = false;
+        
+        let potatoMode = isMobile;
+        
+        function applyPotatoMode() {
+            if (potatoMode) {
+                CONFIG.PHYSICS_ITERATIONS = 3;
+                CONFIG.DEATH_PARTICLES = 6;
+                CONFIG.ENABLE_SHADOWS = false;
+                CONFIG.POWERUP_SPAWN_CHANCE = 0.003;
+                CONFIG.MAX_ARROWS = 50;
+                CONFIG.MAX_BLAZE_BALLS = 25;
+            } else {
+                CONFIG.PHYSICS_ITERATIONS = 5;
+                CONFIG.DEATH_PARTICLES = 16;
+                CONFIG.ENABLE_SHADOWS = true;
+                CONFIG.POWERUP_SPAWN_CHANCE = 0.005;
+                CONFIG.MAX_ARROWS = 100;
+                CONFIG.MAX_BLAZE_BALLS = 50;
+            }
+            for (let key in audioElements) {
+                if (key === 'tnt_explode') audioElements[key].volume = potatoMode ? 0.3 : 0.6;
+                else if (key === 'level_up') audioElements[key].volume = potatoMode ? 0.4 : 0.7;
+                else audioElements[key].volume = potatoMode ? 0.2 : 0.4;
+            }
+        }
+        
         const firebaseConfig = { databaseURL: "https://mbsim-313c1-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         
-        // ==================== ТЕКСТУРЫ ====================
         const TEXTURES = {
             rod: 'https://ru.minecraft.wiki/images/Удочка_JE2_BE2.png?c36e9',
             axe: 'https://minecraft.wiki/images/Diamond_Axe_JE3_BE3.png?99125',
@@ -162,709 +453,521 @@
             shield: 'https://minecraft.wiki/images/Shield_JE2_BE1.png?4837d',
             bell: 'https://ru.minecraft.wiki/images/Потолковый_колокол.png?cc20d',
             blaze_rod: 'https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/item/blaze_rod.png',
-            fire_charge: 'https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/item/fire_charge.png'
+            fire_charge: 'https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/item/fire_charge.png',
+            enchanted_book: 'https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/item/enchanted_book.png',
+            wither_rose: 'https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/block/wither_rose.png',
+            apple: 'https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/item/apple.png'
         };
         const weaponImages = {}; const imageLoaded = {};
         for (let [key, src] of Object.entries(TEXTURES)) {
             weaponImages[key] = new Image(); weaponImages[key].src = src; imageLoaded[key] = false;
             weaponImages[key].onload = () => imageLoaded[key] = true;
         }
+
+        const SOUNDS = {
+            axe: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdaaf09e6e7.mp3',
+            tnt_fuse: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdaae84542b.mp3',
+            tnt_explode: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdaae752d01.mp3',
+            bow_shoot: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdaad171d0b.mp3',
+            shield_block: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdab34cfe7a.mp3',
+            bell_ring: 'https://alexbruni.ru/afx/sound/minecraft/audio/5d3e8d8e8f3a7.mp3',
+            blaze_shoot: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdaad8e94a5.mp3',
+            rod_cast: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdaaf264e73.mp3',
+            player_hurt: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdaac1b6a5b.mp3',
+            player_death: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdaac2c3c72.mp3',
+            level_up: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdab0c1b4e3.mp3',
+            powerup_spawn: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdab2e8f3a7.mp3',
+            powerup_pickup: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdab3f4a5b6.mp3',
+            wall_hit: 'https://alexbruni.ru/afx/sound/minecraft/audio/58cdaac1b6a5b.mp3'
+        };
+
+        const audioElements = {};
+        for (let [key, src] of Object.entries(SOUNDS)) {
+            audioElements[key] = new Audio(src);
+        }
+        applyPotatoMode();
+
+        const soundThrottle = {};
+        function playSound(soundKey) {
+            if (potatoMode && soundKey !== 'player_death' && soundKey !== 'level_up') {
+                if (soundThrottle[soundKey] && Date.now() - soundThrottle[soundKey] < 150) return;
+                soundThrottle[soundKey] = Date.now();
+            }
+            try {
+                if (audioElements[soundKey]) {
+                    audioElements[soundKey].currentTime = 0;
+                    audioElements[soundKey].play();
+                }
+            } catch (e) {}
+        }
         
-        // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const debugEl = document.getElementById('debugInfo');
         const W = CONFIG.CANVAS_SIZE, H = CONFIG.CANVAS_SIZE;
         const BOX = { x: (W - CONFIG.BOX_SIZE) / 2, y: (H - CONFIG.BOX_SIZE) / 2, w: CONFIG.BOX_SIZE, h: CONFIG.BOX_SIZE };
         
+        let cachedBackground = null;
         let gameStarted = false; let animationId = null; let lastTimestamp = 0;
+        let winnerDeclared = false; let victorySoundPlayed = false;
+        let deathTimer = 0;
+        let powerupsEnabled = false;
+        let powerups = [];
+        
         let roomId = null; let roomRef = null; let playerRole = null; let isMultiplayer = false;
-        let opponentConnected = false; let playersReady = { blue: false, red: false };
-        let lastSyncTime = 0; const SYNC_INTERVAL = 50;
+        let playersReady = { blue: false, red: false };
+        let firebaseListeners = [];
         
         let blue, red;
         let tntMarks = [], poisonClouds = [], wallMarks = [], arrows = [], bellWaves = [], blazeBalls = [];
-        let blueHook = null, redHook = null, axeAngle = 0, axeCooldown = 0;
+        let blueHook = null, redHook = null;
+        let axeAngle = 0, axeCooldown = 0;
         const keys = { up: false, down: false, left: false, right: false, space: false }; let spacePressed = false;
         let joystickActive = false, joystickVector = { x: 0, y: 0 }, attackPressed = false;
+        let deathParticles = [];
+        let blueBuffs = { damage: 1, speed: 1, cooldown: 1, shield: 0, invincible: 0 };
+        let redBuffs = { damage: 1, speed: 1, cooldown: 1, shield: 0, invincible: 0 };
         
-        // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+        // Вспышка и виньетка
+        let hitFlashAlpha = 0;
+        let lowHpVignette = 0;
+        
+        // ========== СЕКЦИЯ 2: ИГРОВАЯ ЛОГИКА, ФИЗИКА, ОРУЖИЕ, БОТ ==========
+        
         function createPlayer(side, x, y) {
-            return { 
-                x, y, vx: 0, vy: 0, hp: 100, maxHp: 100, 
-                weapon: side === 'blue' ? 'blaze' : 'axe',
-                facing: side === 'blue' ? 1 : -1, 
-                tntCooldown: 0, rodCooldown: 0, bowCooldown: 0, blazeCooldown: 0,
-                bowCharge: 0, bowCharging: false, bowTarget: null, 
-                shieldActive: false, shieldStamina: CONFIG.SHIELD_MAX_STAMINA, shieldCooldown: 0, 
-                bellCooldown: 0, hitWall: false, wallHitTimer: 0, 
-                blazeAngle: 0 
-            };
+            return { x, y, vx: 0, vy: 0, hp: 100, maxHp: 100, weapon: side === 'blue' ? 'blaze' : 'axe',
+                facing: side === 'blue' ? 1 : -1, tntCooldown: 0, rodCooldown: 0, bowCooldown: 0, blazeCooldown: 0,
+                bowCharge: 0, bowCharging: false, bowTarget: null, shieldActive: false,
+                shieldStamina: CONFIG.SHIELD_MAX_STAMINA, shieldCooldown: 0, bellCooldown: 0,
+                hitWall: false, wallHitTimer: 0, blazeAngle: 0, isDead: false };
         }
         
         function resetPlayers() {
             blue = createPlayer('blue', BOX.x + CONFIG.PLAYER_RADIUS + 20, BOX.y + CONFIG.PLAYER_RADIUS + 20);
             red = createPlayer('red', BOX.x + BOX.w - CONFIG.PLAYER_RADIUS - 20, BOX.y + BOX.h - CONFIG.PLAYER_RADIUS - 20);
             red.vx = 30; red.vy = 25;
+            winnerDeclared = false; victorySoundPlayed = false; deathTimer = 0;
+            blueBuffs = { damage: 1, speed: 1, cooldown: 1, shield: 0, invincible: 0 };
+            redBuffs = { damage: 1, speed: 1, cooldown: 1, shield: 0, invincible: 0 };
+            powerups = [];
+            blue.isDead = false; red.isDead = false;
+            axeAngle = 0; axeCooldown = 0;
+            hitFlashAlpha = 0;
         }
+        
         resetPlayers();
+        function generateRoomCode() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
         
-        function generateRoomCode() { 
-            return Math.random().toString(36).substring(2, 8).toUpperCase(); 
+        function applyWallDamage(p) {
+            if (p.isDead) return;
+            const sp = Math.hypot(p.vx, p.vy);
+            if (sp > CONFIG.WALL_DAMAGE_THRESHOLD) {
+                const dmg = Math.round(CONFIG.WALL_DAMAGE_MIN + (sp - CONFIG.WALL_DAMAGE_THRESHOLD) / 200 * (CONFIG.WALL_DAMAGE_MAX - CONFIG.WALL_DAMAGE_MIN));
+                applyDamage(p, Math.min(CONFIG.WALL_DAMAGE_MAX, dmg), 'wall');
+                playSound('wall_hit');
+                hitFlashAlpha = CONFIG.HIT_FLASH_DURATION;
+            }
         }
         
-        // ==================== ФИЗИКА ====================
         function clampInBox(e, checkWallHit = false) {
             const R = CONFIG.PLAYER_RADIUS; let hit = false;
             if (e.x - R < BOX.x) { e.x = BOX.x + R; e.vx = Math.abs(e.vx); hit = true; }
             else if (e.x + R > BOX.x + BOX.w) { e.x = BOX.x + BOX.w - R; e.vx = -Math.abs(e.vx); hit = true; }
             if (e.y - R < BOX.y) { e.y = BOX.y + R; e.vy = Math.abs(e.vy); hit = true; }
             else if (e.y + R > BOX.y + BOX.h) { e.y = BOX.y + BOX.h - R; e.vy = -Math.abs(e.vy); hit = true; }
+            if (hit) applyWallDamage(e);
             if (checkWallHit && hit) { e.hitWall = true; e.wallHitTimer = 10; }
             return hit;
         }
         
         function handleCollision() {
-            const R = CONFIG.PLAYER_RADIUS; 
-            const dx = red.x - blue.x, dy = red.y - blue.y;
+            const R = CONFIG.PLAYER_RADIUS; const dx = red.x - blue.x, dy = red.y - blue.y;
             const dist = Math.sqrt(dx*dx + dy*dy), minDist = R * 2;
             if (dist < minDist && dist > 0.001) {
                 const nx = dx / dist, ny = dy / dist, overlap = minDist - dist;
                 blue.x -= nx * overlap * 0.5; blue.y -= ny * overlap * 0.5;
                 red.x += nx * overlap * 0.5; red.y += ny * overlap * 0.5;
-                const redVn = red.vx * nx + red.vy * ny; 
-                if (redVn < 0) { red.vx -= 2 * redVn * nx; red.vy -= 2 * redVn * ny; }
-                const blueVn = blue.vx * nx + blue.vy * ny; 
-                if (blueVn > 0) { blue.vx -= 2 * blueVn * nx; blue.vy -= 2 * blueVn * ny; }
+                const redVn = red.vx * nx + red.vy * ny; if (redVn < 0) { red.vx -= 2 * redVn * nx; red.vy -= 2 * redVn * ny; }
+                const blueVn = blue.vx * nx + blue.vy * ny; if (blueVn > 0) { blue.vx -= 2 * blueVn * nx; blue.vy -= 2 * blueVn * ny; }
             }
         }
         
         function applyDamage(target, amount, source) {
-            if (target.hp <= 0) return;
+            if (target.hp <= 0 || target.isDead) return;
+            const buffs = target === blue ? blueBuffs : redBuffs;
+            
+            if (devMode && ((target === blue && window.devGodBlue) || (target === red && window.devGodRed))) return;
+            
+            if (buffs.invincible > 0) { playSound('shield_block'); return; }
             
             let dmg = amount, ref = 0;
-            
-            if (target === blue && blue.shieldActive) { 
-                ref = Math.floor(amount * CONFIG.SHIELD_REFLECT_PERCENT); 
-                dmg = amount - ref; 
-                if (ref > 0 && source === 'red') {
-                    red.hp = Math.max(0, red.hp - ref);
-                    if (isMultiplayer && playerRole === 'blue') {
-                        roomRef.child('red/hp').set(red.hp);
-                    }
-                }
+            if (target === blue && blue.shieldActive) {
+                ref = Math.floor(amount * CONFIG.SHIELD_REFLECT_PERCENT);
+                dmg = amount - ref;
+                if (ref > 0 && source === 'red') { red.hp = Math.max(0, red.hp - ref); playSound('shield_block'); }
+                else playSound('shield_block');
             }
-            if (target === red && red.shieldActive) { 
-                ref = Math.floor(amount * CONFIG.SHIELD_REFLECT_PERCENT); 
-                dmg = amount - ref; 
-                if (ref > 0 && source === 'blue') {
-                    blue.hp = Math.max(0, blue.hp - ref);
-                    if (isMultiplayer && playerRole === 'red') {
-                        roomRef.child('blue/hp').set(blue.hp);
-                    }
-                }
+            if (target === red && red.shieldActive) {
+                ref = Math.floor(amount * CONFIG.SHIELD_REFLECT_PERCENT);
+                dmg = amount - ref;
+                if (ref > 0 && source === 'blue') { blue.hp = Math.max(0, blue.hp - ref); playSound('shield_block'); }
+                else playSound('shield_block');
             }
             
+            if (buffs.shield > 0) dmg = Math.floor(dmg * 0.3);
             target.hp = Math.max(0, target.hp - dmg);
             
-            if (isMultiplayer) {
-                const targetRole = target === blue ? 'blue' : 'red';
-                const sourceRole = source;
+            if (dmg > 0) {
+                playSound('player_hurt');
+                hitFlashAlpha = CONFIG.HIT_FLASH_DURATION;
                 
-                if (playerRole === sourceRole) {
-                    roomRef.child(`${targetRole}/hp`).set(target.hp);
+                if (target.hp <= 0) {
+                    target.isDead = true;
+                    playSound('player_death');
+                    const particleCount = CONFIG.DEATH_PARTICLES;
+                    for (let i = 0; i < particleCount; i++) {
+                        let angle = (i / particleCount) * Math.PI * 2;
+                        let speed = 2 + Math.random() * 5;
+                        deathParticles.push({ x: target.x, y: target.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 40, size: 8 + Math.random() * 15 });
+                    }
                 }
             }
         }
         
-        // ==================== ОРУЖИЕ ====================
         function createHook(owner, target) {
             const dx = target.x - owner.x, dy = target.y - owner.y, dist = Math.hypot(dx, dy);
             let vx = owner.facing * CONFIG.HOOK_SPEED, vy = 0;
-            if (dist > 0) { 
-                const ta = Math.atan2(dy, dx), ba = owner.facing > 0 ? 0 : Math.PI; 
-                let diff = ta - ba; 
-                while (diff > Math.PI) diff -= 2*Math.PI; 
-                while (diff < -Math.PI) diff += 2*Math.PI; 
-                const ha = ba + diff * 0.8; 
-                vx = Math.cos(ha) * CONFIG.HOOK_SPEED; 
-                vy = Math.sin(ha) * CONFIG.HOOK_SPEED; 
-            }
-            return { 
-                x: owner.x, y: owner.y, vx, vy, bounces: 0, caught: null, 
-                owner: owner===blue?'blue':'red', returning: false 
-            };
+            if (dist > 0) { const ta = Math.atan2(dy, dx), ba = owner.facing > 0 ? 0 : Math.PI; let diff = ta - ba; while (diff > Math.PI) diff -= 2*Math.PI; while (diff < -Math.PI) diff += 2*Math.PI; const ha = ba + diff * 0.8; vx = Math.cos(ha) * CONFIG.HOOK_SPEED; vy = Math.sin(ha) * CONFIG.HOOK_SPEED; }
+            return { x: owner.x, y: owner.y, vx, vy, bounces: 0, caught: null, owner: owner===blue?'blue':'red', returning: false };
         }
         
         function shootArrow(owner) {
-            const charge = owner.bowCharge / CONFIG.BOW_MAX_CHARGE; 
-            const damage = Math.floor(CONFIG.BOW_MIN_DAMAGE + charge * (CONFIG.BOW_MAX_DAMAGE - CONFIG.BOW_MIN_DAMAGE)); 
+            const buffs = owner === blue ? blueBuffs : redBuffs;
+            const charge = owner.bowCharge / CONFIG.BOW_MAX_CHARGE;
+            const damage = Math.floor((CONFIG.BOW_MIN_DAMAGE + charge * (CONFIG.BOW_MAX_DAMAGE - CONFIG.BOW_MIN_DAMAGE)) * buffs.damage);
             let vx, vy;
-            if (owner.bowTarget) { 
-                const dx = owner.bowTarget.x - owner.x, dy = owner.bowTarget.y - owner.y; 
-                const dist = Math.hypot(dx, dy); 
-                if (dist > 0) { 
-                    vx = (dx/dist)*CONFIG.ARROW_SPEED; 
-                    vy = (dy/dist)*CONFIG.ARROW_SPEED; 
-                } else { 
-                    vx = owner.facing*CONFIG.ARROW_SPEED; 
-                    vy = 0; 
-                } 
-            } else { 
-                vx = owner.facing*CONFIG.ARROW_SPEED; 
-                vy = 0; 
-            }
-            
-            const arrow = { 
-                x: owner.x, y: owner.y, vx, vy, 
-                owner: owner===blue?'blue':'red', 
-                damage, 
-                homingTarget: owner===blue?red:blue, 
-                life: 180,
-                type: 'arrow'
-            };
-            
+            if (owner.bowTarget) { const dx = owner.bowTarget.x - owner.x, dy = owner.bowTarget.y - owner.y; const dist = Math.hypot(dx, dy); if (dist > 0) { vx = (dx/dist)*CONFIG.ARROW_SPEED; vy = (dy/dist)*CONFIG.ARROW_SPEED; } else { vx = owner.facing*CONFIG.ARROW_SPEED; vy = 0; } }
+            else { vx = owner.facing*CONFIG.ARROW_SPEED; vy = 0; }
+            const arrow = { x: owner.x, y: owner.y, vx, vy, owner: owner===blue?'blue':'red', damage, homingTarget: owner===blue?red:blue, life: 180 };
             arrows.push(arrow);
-            owner.bowCooldown = CONFIG.BOW_COOLDOWN; 
-            owner.bowCharging = false; 
-            owner.bowCharge = 0; 
-            owner.bowTarget = null;
-            
-            if (isMultiplayer && playerRole === arrow.owner) {
-                syncProjectile('arrow', arrow);
+            if (arrows.length > CONFIG.MAX_ARROWS) arrows.shift();
+            if (isMultiplayer) sendProjectile({ ...arrow, type: 'arrow' });
+            owner.bowCooldown = devNoCooldowns ? 0 : Math.floor(CONFIG.BOW_COOLDOWN * (1 / buffs.cooldown));
+            if (!devInfiniteAmmo) {
+                owner.bowCharging = false; owner.bowCharge = 0; owner.bowTarget = null;
             }
+            playSound('bow_shoot');
         }
         
         function createBellWave(owner) {
-            const wave = { 
-                x: owner.x, y: owner.y, 
-                radius: 20, 
-                maxRadius: CONFIG.BELL_WAVE_RADIUS, 
-                owner: owner === blue ? 'blue' : 'red', 
-                damage: CONFIG.BELL_WAVE_DAMAGE, 
-                damaged: new Set(), 
-                life: 1.0,
-                type: 'bellWave'
-            };
-            
+            const buffs = owner === blue ? blueBuffs : redBuffs;
+            const wave = { x: owner.x, y: owner.y, radius: 20, maxRadius: CONFIG.BELL_WAVE_RADIUS, owner: owner === blue ? 'blue' : 'red', damage: Math.floor(CONFIG.BELL_WAVE_DAMAGE * buffs.damage), damaged: new Set(), life: 1.0 };
             bellWaves.push(wave);
-            owner.bellCooldown = CONFIG.BELL_COOLDOWN;
-            
-            if (isMultiplayer && playerRole === wave.owner) {
-                syncProjectile('bellWave', wave);
-            }
+            if (bellWaves.length > CONFIG.MAX_BELL_WAVES) bellWaves.shift();
+            if (isMultiplayer) sendProjectile({ ...wave, type: 'bell', damaged: null });
+            playSound('bell_ring');
         }
         
         function shootBlaze(owner) {
-            const baseAngle = owner.facing > 0 ? 0 : Math.PI; 
-            const angles = [-CONFIG.BLAZE_SPREAD, 0, CONFIG.BLAZE_SPREAD];
-            
-            angles.forEach(angleOffset => { 
-                const rad = baseAngle + (angleOffset * Math.PI / 180);
-                const ball = { 
-                    x: owner.x, y: owner.y, 
-                    vx: Math.cos(rad) * CONFIG.BLAZE_SPEED, 
-                    vy: Math.sin(rad) * CONFIG.BLAZE_SPEED, 
-                    owner: owner === blue ? 'blue' : 'red', 
-                    damage: CONFIG.BLAZE_DAMAGE, 
-                    life: 150,
-                    type: 'blazeBall'
-                };
-                
-                blazeBalls.push(ball);
-                
-                if (isMultiplayer && playerRole === ball.owner) {
-                    syncProjectile('blazeBall', ball);
-                }
+            const buffs = owner === blue ? blueBuffs : redBuffs;
+            const baseAngle = owner.facing > 0 ? 0 : Math.PI; const angles = [-CONFIG.BLAZE_SPREAD, 0, CONFIG.BLAZE_SPREAD];
+            angles.forEach(angleOffset => { const rad = baseAngle + (angleOffset * Math.PI / 180);
+                const blaze = { x: owner.x, y: owner.y, vx: Math.cos(rad) * CONFIG.BLAZE_SPEED, vy: Math.sin(rad) * CONFIG.BLAZE_SPEED, owner: owner === blue ? 'blue' : 'red', damage: Math.floor(CONFIG.BLAZE_DAMAGE * buffs.damage), life: 150 };
+                blazeBalls.push(blaze);
+                if (isMultiplayer) sendProjectile({ ...blaze, type: 'blaze' });
             });
-            
-            owner.blazeCooldown = CONFIG.BLAZE_COOLDOWN;
+            while (blazeBalls.length > CONFIG.MAX_BLAZE_BALLS) blazeBalls.shift();
+            owner.blazeCooldown = devNoCooldowns ? 0 : Math.floor(CONFIG.BLAZE_COOLDOWN * (1 / buffs.cooldown));
+            playSound('blaze_shoot');
         }
         
-        function syncProjectile(type, proj) {
-            if (!isMultiplayer || !roomRef) return;
+        function botAI() {
+            if (!gameStarted || isMultiplayer || red.isDead) return;
+            const buffs = redBuffs;
             
-            const projData = { ...proj };
-            delete projData.damaged;
-            projData.timestamp = firebase.database.ServerValue.TIMESTAMP;
+            if (red.weapon === 'axe' || red.weapon === 'blaze' || red.weapon === 'shield') {
+                red.facing = blue.x > red.x ? 1 : -1;
+            } else if (red.weapon === 'bow' || red.weapon === 'tnt') {
+                red.facing = blue.x > red.x ? -1 : 1;
+            } else if (red.weapon === 'bell') {
+                const distToLeft = red.x - BOX.x, distToRight = BOX.x + BOX.w - red.x;
+                red.facing = distToLeft < distToRight ? -1 : 1;
+            }
             
-            const projRef = roomRef.child(`${playerRole}Projectiles`).child(type);
-            projRef.push(projData);
+            if (red.weapon === 'tnt' && red.tntCooldown <= 0) { 
+                const tnt = { x: Math.max(BOX.x, Math.min(BOX.x+BOX.w, red.x+red.facing*CONFIG.BOT_TNT_DISTANCE)), y: red.y, owner: 'red', timer: 60 };
+                tntMarks.push(tnt); red.tntCooldown = devNoCooldowns ? 0 : Math.floor(CONFIG.TNT_COOLDOWN * (1 / buffs.cooldown)); playSound('tnt_fuse');
+            }
+            if (red.weapon === 'rod' && red.rodCooldown <= 0 && !redHook) { redHook = createHook(red, blue); playSound('rod_cast'); }
+            if (red.weapon === 'bow' && red.bowCooldown <= 0) { if (!red.bowCharging) { red.bowCharging = true; red.bowCharge = 0; red.bowTarget = { x: blue.x, y: blue.y }; } }
+            if (red.bowCharging) { red.bowCharge = Math.min(red.bowCharge+1, CONFIG.BOW_MAX_CHARGE); red.bowTarget = { x: blue.x, y: blue.y }; if (red.bowCharge >= CONFIG.BOW_MAX_CHARGE || Math.random() < CONFIG.BOT_SHOOT_CHANCE) shootArrow(red); }
+            if (red.weapon === 'shield') { if (red.shieldCooldown <= 0 && red.shieldStamina > 0) { red.shieldActive = true; red.shieldStamina--; if (red.shieldStamina <= 0) { red.shieldActive = false; red.shieldCooldown = CONFIG.SHIELD_COOLDOWN; red.shieldStamina = CONFIG.SHIELD_MAX_STAMINA; } } else red.shieldActive = false; }
+            if (red.weapon === 'blaze' && red.blazeCooldown <= 0) { shootBlaze(red); }
+        }
+        
+        function updateCooldowns() {
+            [blue, red].forEach(p => {
+                if (p.isDead) return;
+                const buffs = p === blue ? blueBuffs : redBuffs;
+                const cooldownMult = devNoCooldowns ? 0 : (1 / buffs.cooldown);
+                
+                if (p.tntCooldown > 0) p.tntCooldown -= cooldownMult;
+                if (p.rodCooldown > 0) p.rodCooldown -= cooldownMult;
+                if (p.bowCooldown > 0) p.bowCooldown -= cooldownMult;
+                if (p.shieldCooldown > 0) p.shieldCooldown--;
+                if (p.bellCooldown > 0) p.bellCooldown -= cooldownMult;
+                if (p.blazeCooldown > 0) p.blazeCooldown -= cooldownMult;
+                
+                if (!p.shieldActive && p.shieldStamina < CONFIG.SHIELD_MAX_STAMINA && p.shieldCooldown <= 0) p.shieldStamina = Math.min(p.shieldStamina+1, CONFIG.SHIELD_MAX_STAMINA);
+                if (p.hitWall && p.weapon === 'bell' && p.bellCooldown <= 0) { createBellWave(p); p.bellCooldown = devNoCooldowns ? 0 : Math.floor(CONFIG.BELL_COOLDOWN * (1 / buffs.cooldown)); }
+                p.hitWall = false;
+                if (p.wallHitTimer > 0) p.wallHitTimer--; else p.hitWall = false;
+                if (p.weapon === 'blaze') p.blazeAngle = (p.blazeAngle || 0) + CONFIG.BLAZE_ROTATION_SPEED;
+            });
+            if (axeCooldown > 0) axeCooldown -= devNoCooldowns ? 2 : 1;
+            if (hitFlashAlpha > 0) hitFlashAlpha--;
+        }
+        
+        function handleInput() {
+            let player = isMultiplayer ? (playerRole === 'blue' ? blue : red) : blue;
+            let opponent = isMultiplayer ? (playerRole === 'blue' ? red : blue) : red;
+            if (player.isDead) return;
             
-            projRef.once('value', (snapshot) => {
-                const projectiles = snapshot.val() || {};
-                const now = Date.now();
-                Object.entries(projectiles).forEach(([key, value]) => {
-                    if (value.timestamp && now - value.timestamp > 5000) {
-                        projRef.child(key).remove();
+            const buffs = player === blue ? blueBuffs : redBuffs;
+            if (joystickActive) { const dz = 0.2; if (Math.abs(joystickVector.x) > dz || Math.abs(joystickVector.y) > dz) { keys.up = joystickVector.y < -dz; keys.down = joystickVector.y > dz; keys.left = joystickVector.x < -dz; keys.right = joystickVector.x > dz; } else { keys.up = keys.down = keys.left = keys.right = false; } }
+            
+            if (player.weapon === 'bow') { const attackPressedNow = keys.space || attackPressed; if (attackPressedNow && player.bowCooldown <= 0) { if (!player.bowCharging) { player.bowCharging = true; player.bowCharge = 0; player.bowTarget = { x: opponent.x, y: opponent.y }; } player.bowCharge = Math.min(player.bowCharge+1, CONFIG.BOW_MAX_CHARGE); player.bowTarget = { x: opponent.x, y: opponent.y }; } else if (player.bowCharging) { shootArrow(player); } }
+            if (player.weapon === 'shield') { const attackPressedNow = keys.space || attackPressed; if (attackPressedNow && player.shieldCooldown <= 0 && player.shieldStamina > 0) { player.shieldActive = true; player.shieldStamina--; if (player.shieldStamina <= 0) { player.shieldActive = false; player.shieldCooldown = CONFIG.SHIELD_COOLDOWN; player.shieldStamina = CONFIG.SHIELD_MAX_STAMINA; } } else { player.shieldActive = false; } }
+            
+            const attackEdge = (keys.space || attackPressed) && !spacePressed;
+            if (attackEdge) {
+                if (player.weapon === 'tnt' && player.tntCooldown <= 0) { 
+                    const tnt = { x: Math.max(BOX.x, Math.min(BOX.x+BOX.w, player.x+player.facing*80)), y: player.y, owner: player === blue ? 'blue' : 'red', timer: 60 };
+                    tntMarks.push(tnt); if (isMultiplayer) sendProjectile({ ...tnt, type: 'tnt' });
+                    player.tntCooldown = devNoCooldowns ? 0 : Math.floor(CONFIG.TNT_COOLDOWN * (1 / buffs.cooldown)); playSound('tnt_fuse');
+                }
+                else if (player.weapon === 'rod' && player.rodCooldown <= 0 && !blueHook && !redHook) { if (player === blue) blueHook = createHook(blue, red); else redHook = createHook(red, blue); playSound('rod_cast'); }
+                else if (player.weapon === 'blaze' && player.blazeCooldown <= 0) { shootBlaze(player); }
+            }
+            spacePressed = (keys.space || attackPressed);
+        }
+        
+        function updateBlazeBalls() { blazeBalls = blazeBalls.filter(b => { b.x += b.vx; b.y += b.vy; b.life--; if (b.x < BOX.x || b.x > BOX.x+BOX.w || b.y < BOX.y || b.y > BOX.y+BOX.h || b.life <= 0) return false; const t = b.owner === 'blue' ? red : blue; if (!t.isDead && Math.hypot(b.x - t.x, b.y - t.y) < CONFIG.PLAYER_RADIUS + 8) { applyDamage(t, b.damage, b.owner); return false; } return true; }); }
+        function updateBellWaves() { bellWaves = bellWaves.filter(w => { w.radius += 12; w.life = Math.max(0, 1 - w.radius / w.maxRadius); if (w.radius >= w.maxRadius) return false; const t = w.owner === 'blue' ? red : blue; if (t.isDead) return true; const dist = Math.hypot(w.x - t.x, w.y - t.y); if (dist < w.radius && dist > w.radius - 25 && !w.damaged.has(t)) { applyDamage(t, w.damage, w.owner); w.damaged.add(t); const ang = Math.atan2(t.y - w.y, t.x - w.x); t.vx += Math.cos(ang) * CONFIG.BELL_KNOCKBACK; t.vy += Math.sin(ang) * CONFIG.BELL_KNOCKBACK; } return true; }); }
+        function updateArrows() { arrows = arrows.filter(a => { if (a.homingTarget) { const dx = a.homingTarget.x - a.x, dy = a.homingTarget.y - a.y, dist = Math.hypot(dx, dy); if (dist > 0) { a.vx += (dx/dist)*CONFIG.ARROW_HOMING_STRENGTH; a.vy += (dy/dist)*CONFIG.ARROW_HOMING_STRENGTH; const sp = Math.hypot(a.vx, a.vy), max = CONFIG.ARROW_SPEED*1.5; if (sp > max) { a.vx *= max/sp; a.vy *= max/sp; } } } a.x += a.vx; a.y += a.vy; a.life--; if (a.x < BOX.x || a.x > BOX.x+BOX.w || a.y < BOX.y || a.y > BOX.y+BOX.h || a.life <= 0) return false; const t = a.owner === 'blue' ? red : blue; if (!t.isDead && Math.hypot(a.x-t.x, a.y-t.y) < CONFIG.PLAYER_RADIUS+10) { applyDamage(t, a.damage, a.owner); return false; } return true; }); }
+        function updateTNT() { tntMarks = tntMarks.filter(m => { m.timer--; if (m.timer <= 0) { [blue, red].forEach(t => { if (t.isDead) return; if (m.owner==='blue' && t===blue) return; if (m.owner==='red' && t===red) return; const dist = Math.hypot(m.x-t.x, m.y-t.y); if (dist < CONFIG.TNT_RADIUS) { const dmg = Math.round(CONFIG.TNT_DAMAGE_MAX - (dist/CONFIG.TNT_RADIUS)*(CONFIG.TNT_DAMAGE_MAX-CONFIG.TNT_DAMAGE_MIN)); applyDamage(t, dmg, m.owner); } }); poisonClouds.push({ x: m.x, y: m.y, timer: CONFIG.POISON_DURATION, owner: m.owner }); playSound('tnt_explode'); return false; } return true; }); }
+        function updatePoison() { poisonClouds = poisonClouds.filter(c => { c.timer--; if (c.timer <= 0) return false; if (c.timer % 60 === 0) { [blue, red].forEach(t => { if (t.isDead) return; if (c.owner==='blue' && t===blue) return; if (c.owner==='red' && t===red) return; if (Math.hypot(c.x-t.x, c.y-t.y) < CONFIG.TNT_RADIUS) applyDamage(t, CONFIG.POISON_DAMAGE, c.owner); }); } return true; }); }
+        function updateHooks() { [blueHook, redHook].forEach(h => { if (!h) return; if (h.returning) { const o = h.owner==='blue'?blue:red; const dx = o.x-h.x, dy = o.y-h.y, dist = Math.hypot(dx, dy); if (dist < 30) { if (h.owner==='blue') { blueHook = null; blue.rodCooldown = CONFIG.ROD_COOLDOWN; } else { redHook = null; red.rodCooldown = CONFIG.ROD_COOLDOWN; } } else { h.x += (dx/dist)*CONFIG.HOOK_SPEED*1.5; h.y += (dy/dist)*CONFIG.HOOK_SPEED*1.5; } return; } h.x += h.vx; h.y += h.vy; if (h.x < BOX.x || h.x > BOX.x+BOX.w) { h.vx = -h.vx; h.bounces++; h.x = Math.max(BOX.x, Math.min(BOX.x+BOX.w, h.x)); wallMarks.push({ x: h.x, y: h.y, timer: 30 }); } if (h.y < BOX.y || h.y > BOX.y+BOX.h) { h.vy = -h.vy; h.bounces++; h.y = Math.max(BOX.y, Math.min(BOX.y+BOX.h, h.y)); wallMarks.push({ x: h.x, y: h.y, timer: 30 }); } const t = h.owner==='blue'?red:blue; if (!h.caught) { if (!t.isDead && Math.hypot(h.x-t.x, h.y-t.y) < CONFIG.PLAYER_RADIUS+5) { h.caught = t; applyDamage(t, h.bounces*CONFIG.ROD_DAMAGE_PER_BOUNCE, h.owner); h.returning = true; } } else { const o = h.owner==='blue'?blue:red; h.caught.x += (o.x-h.caught.x)*0.15; h.caught.y += (o.y-h.caught.y)*0.15; } if (h.bounces >= CONFIG.MAX_BOUNCES) h.returning = true; }); }
+        function updateAxe() {
+            [blue, red].forEach(o => {
+                if (o.isDead || o.weapon !== 'axe') return;
+                const buffs = o === blue ? blueBuffs : redBuffs;
+                const angles = [axeAngle, axeAngle + Math.PI];
+                angles.forEach(ang => {
+                    let ax = o.x + Math.cos(ang) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_X;
+                    let ay = o.y + Math.sin(ang) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_Y;
+                    const t = o === blue ? red : blue;
+                    if (t.isDead) return;
+                    if (Math.hypot(ax - t.x, ay - t.y) < CONFIG.AXE_HITBOX_RADIUS + CONFIG.PLAYER_RADIUS && axeCooldown <= 0) {
+                        applyDamage(t, Math.floor(CONFIG.AXE_DAMAGE * buffs.damage), o === blue ? 'blue' : 'red');
+                        const ang2 = Math.atan2(t.y - ay, t.x - ax);
+                        t.vx = Math.cos(ang2) * CONFIG.AXE_KNOCKBACK;
+                        t.vy = Math.sin(ang2) * CONFIG.AXE_KNOCKBACK;
+                        axeCooldown = CONFIG.AXE_COOLDOWN;
+                        playSound('axe');
                     }
                 });
             });
+            axeAngle += CONFIG.AXE_ROTATION_SPEED;
         }
         
-        // ==================== БОТ ====================
-        function botAI() {
-            if (!gameStarted || isMultiplayer) return;
+        function updatePowerups() {
+            if (!powerupsEnabled) return;
+            if (isMultiplayer && playerRole !== 'blue') return;
             
-            if (red.weapon === 'tnt' && red.tntCooldown <= 0) { 
-                const tnt = {
-                    x: Math.max(BOX.x, Math.min(BOX.x+BOX.w, red.x+red.facing*CONFIG.BOT_TNT_DISTANCE)), 
-                    y: red.y, owner: 'red', timer: 60,
-                    type: 'tnt'
-                };
-                tntMarks.push(tnt); 
-                red.tntCooldown = CONFIG.TNT_COOLDOWN;
+            if (Math.random() < CONFIG.POWERUP_SPAWN_CHANCE) {
+                const types = ['enchanted_book', 'shield', 'wither_rose', 'apple'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const x = BOX.x + 50 + Math.random() * (BOX.w - 100);
+                const y = BOX.y + 50 + Math.random() * (BOX.h - 100);
+                const powerup = { type, x, y, life: 300, radius: 20 };
+                powerups.push(powerup);
+                if (isMultiplayer) sendPowerup(powerup);
+                playSound('powerup_spawn');
             }
-            
-            if (red.weapon === 'rod' && red.rodCooldown <= 0 && !redHook) {
-                redHook = createHook(red, blue);
-            }
-            
-            if (red.weapon === 'bow' && red.bowCooldown <= 0) { 
-                if (!red.bowCharging) { 
-                    red.bowCharging = true; 
-                    red.bowCharge = 0; 
-                    red.bowTarget = { x: blue.x, y: blue.y }; 
-                } 
-            }
-            
-            if (red.bowCharging) { 
-                red.bowCharge = Math.min(red.bowCharge+1, CONFIG.BOW_MAX_CHARGE); 
-                red.bowTarget = { x: blue.x, y: blue.y }; 
-                if (red.bowCharge >= CONFIG.BOW_MAX_CHARGE || Math.random() < CONFIG.BOT_SHOOT_CHANCE) {
-                    shootArrow(red);
-                }
-            }
-            
-            if (red.weapon === 'shield') { 
-                if (red.shieldCooldown <= 0 && red.shieldStamina > 0) { 
-                    red.shieldActive = true; 
-                    red.shieldStamina--; 
-                    if (red.shieldStamina <= 0) { 
-                        red.shieldActive = false; 
-                        red.shieldCooldown = CONFIG.SHIELD_COOLDOWN; 
-                        red.shieldStamina = CONFIG.SHIELD_MAX_STAMINA; 
-                    } 
-                } else {
-                    red.shieldActive = false; 
-                }
-            }
-            
-            if (red.weapon === 'bell' && red.bellCooldown <= 0 && red.hitWall) { 
-                createBellWave(red); 
-            }
-            
-            if (red.weapon === 'blaze' && red.blazeCooldown <= 0) { 
-                shootBlaze(red); 
-            }
-        }
-        
-        // ==================== ОБНОВЛЕНИЕ КУЛДАУНОВ ====================
-        function updateCooldowns() {
-            [blue, red].forEach(p => {
-                if (p.tntCooldown > 0) p.tntCooldown--; 
-                if (p.rodCooldown > 0) p.rodCooldown--; 
-                if (p.bowCooldown > 0) p.bowCooldown--;
-                if (p.shieldCooldown > 0) p.shieldCooldown--; 
-                if (p.bellCooldown > 0) p.bellCooldown--; 
-                if (p.blazeCooldown > 0) p.blazeCooldown--;
-                
-                if (!p.shieldActive && p.shieldStamina < CONFIG.SHIELD_MAX_STAMINA && p.shieldCooldown <= 0) {
-                    p.shieldStamina = Math.min(p.shieldStamina+1, CONFIG.SHIELD_MAX_STAMINA);
-                }
-                
-                if (p.wallHitTimer > 0) p.wallHitTimer--; 
-                else p.hitWall = false;
-                
-                if (p.weapon === 'blaze') p.blazeAngle = (p.blazeAngle || 0) + CONFIG.BLAZE_ROTATION_SPEED;
+            powerups = powerups.filter(p => {
+                p.life--; if (p.life <= 0) return false;
+                if (!blue.isDead && Math.hypot(p.x - blue.x, p.y - blue.y) < CONFIG.PLAYER_RADIUS + p.radius) { applyPowerup(blue, p.type); return false; }
+                if (!red.isDead && Math.hypot(p.x - red.x, p.y - red.y) < CONFIG.PLAYER_RADIUS + p.radius) { applyPowerup(red, p.type); return false; }
+                return true;
             });
-            
-            if (axeCooldown > 0) axeCooldown--;
         }
         
-        // ==================== ОБРАБОТКА ВВОДА ====================
-        function handleInput() {
-            if (!gameStarted) return;
-            
-            let player, opponent;
-            if (isMultiplayer) { 
-                player = playerRole === 'blue' ? blue : red; 
-                opponent = playerRole === 'blue' ? red : blue; 
-            } else { 
-                player = blue; 
-                opponent = red; 
+        function applyPowerup(player, type) {
+            const buffs = player === blue ? blueBuffs : redBuffs;
+            if (type === 'enchanted_book') {
+                buffs.damage = 2; buffs.speed = 1.5; buffs.cooldown = 0.5;
+                setTimeout(() => { buffs.damage = 1; buffs.speed = 1; buffs.cooldown = 1; }, CONFIG.POWERUP_DURATION_MS);
+            } else if (type === 'shield') {
+                buffs.shield = 1; buffs.invincible = 1;
+                setTimeout(() => { buffs.shield = 0; buffs.invincible = 0; }, 7000);
+            } else if (type === 'wither_rose') {
+                player.hp = Math.max(0, player.hp - 10);
+                player.hp <= 0 ? playSound('player_death') : playSound('player_hurt');
+                if (player.hp <= 0) player.isDead = true;
+            } else if (type === 'apple') {
+                player.hp = Math.min(player.maxHp, player.hp + CONFIG.APPLE_HEAL);
+                playSound('powerup_pickup');
             }
-            
-            if (joystickActive) { 
-                const dz = 0.2; 
-                if (Math.abs(joystickVector.x) > dz || Math.abs(joystickVector.y) > dz) { 
-                    keys.up = joystickVector.y < -dz; 
-                    keys.down = joystickVector.y > dz; 
-                    keys.left = joystickVector.x < -dz; 
-                    keys.right = joystickVector.x > dz; 
-                } else { 
-                    keys.up = keys.down = keys.left = keys.right = false; 
-                } 
-            }
-            
-            const attackPressedNow = keys.space || attackPressed;
-            
-            if (player.weapon === 'bow') { 
-                if (attackPressedNow && player.bowCooldown <= 0) { 
-                    if (!player.bowCharging) { 
-                        player.bowCharging = true; 
-                        player.bowCharge = 0; 
-                        player.bowTarget = { x: opponent.x, y: opponent.y }; 
-                    } 
-                    player.bowCharge = Math.min(player.bowCharge+1, CONFIG.BOW_MAX_CHARGE); 
-                    player.bowTarget = { x: opponent.x, y: opponent.y }; 
-                } else if (player.bowCharging) { 
-                    shootArrow(player); 
-                } 
-            }
-            
-            if (player.weapon === 'shield') { 
-                if (attackPressedNow && player.shieldCooldown <= 0 && player.shieldStamina > 0) { 
-                    player.shieldActive = true; 
-                    player.shieldStamina--; 
-                    if (player.shieldStamina <= 0) { 
-                        player.shieldActive = false; 
-                        player.shieldCooldown = CONFIG.SHIELD_COOLDOWN; 
-                        player.shieldStamina = CONFIG.SHIELD_MAX_STAMINA; 
-                    } 
-                } else { 
-                    player.shieldActive = false; 
-                } 
-            }
-            
-            const attackEdge = attackPressedNow && !spacePressed;
-            if (attackEdge) {
-                if (player.weapon === 'tnt' && player.tntCooldown <= 0) { 
-                    const tnt = { 
-                        x: Math.max(BOX.x, Math.min(BOX.x+BOX.w, player.x+player.facing*80)), 
-                        y: player.y, 
-                        owner: player === blue ? 'blue' : 'red', 
-                        timer: 60,
-                        type: 'tnt'
-                    };
-                    tntMarks.push(tnt); 
-                    player.tntCooldown = CONFIG.TNT_COOLDOWN;
-                    if (isMultiplayer && playerRole === tnt.owner) {
-                        syncProjectile('tnt', tnt);
-                    }
-                }
-                else if (player.weapon === 'rod' && player.rodCooldown <= 0 && !blueHook && !redHook) { 
-                    const hook = createHook(player, opponent);
-                    if (player === blue) blueHook = hook;
-                    else redHook = hook;
-                    player.rodCooldown = CONFIG.ROD_COOLDOWN;
-                }
-                else if (player.weapon === 'bell' && player.bellCooldown <= 0 && player.hitWall) { 
-                    createBellWave(player); 
-                }
-                else if (player.weapon === 'blaze' && player.blazeCooldown <= 0) { 
-                    shootBlaze(player); 
-                }
-            }
-            
-            spacePressed = attackPressedNow;
+            if (type !== 'apple') playSound('powerup_pickup');
         }
         
-        // ==================== ОБНОВЛЕНИЕ СНАРЯДОВ ====================
-        function updateBlazeBalls() { 
-            blazeBalls = blazeBalls.filter(b => { 
-                b.x += b.vx; b.y += b.vy; b.life--;
-                if (b.x < BOX.x || b.x > BOX.x+BOX.w || b.y < BOX.y || b.y > BOX.y+BOX.h || b.life <= 0) return false;
-                const t = b.owner === 'blue' ? red : blue;
-                if (Math.hypot(b.x - t.x, b.y - t.y) < CONFIG.PLAYER_RADIUS + 8) { 
-                    applyDamage(t, b.damage, b.owner); 
-                    return false; 
-                }
-                return true; 
-            }); 
-        }
-        
-        function updateBellWaves() { 
-            bellWaves = bellWaves.filter(w => { 
-                w.radius += 12; 
-                w.life = Math.max(0, 1 - w.radius / w.maxRadius);
-                if (w.radius >= w.maxRadius) return false;
-                const t = w.owner === 'blue' ? red : blue;
-                const dist = Math.hypot(w.x - t.x, w.y - t.y);
-                if (dist < w.radius && dist > w.radius - 25 && !w.damaged.has(t)) { 
-                    applyDamage(t, w.damage, w.owner); 
-                    w.damaged.add(t);
-                    const ang = Math.atan2(t.y - w.y, t.x - w.x);
-                    t.vx += Math.cos(ang) * CONFIG.BELL_KNOCKBACK; 
-                    t.vy += Math.sin(ang) * CONFIG.BELL_KNOCKBACK;
-                }
-                return true; 
-            }); 
-        }
-        
-        function updateArrows() { 
-            arrows = arrows.filter(a => { 
-                if (a.homingTarget) { 
-                    const dx = a.homingTarget.x - a.x, dy = a.homingTarget.y - a.y, dist = Math.hypot(dx, dy);
-                    if (dist > 0) { 
-                        a.vx += (dx/dist)*CONFIG.ARROW_HOMING_STRENGTH; 
-                        a.vy += (dy/dist)*CONFIG.ARROW_HOMING_STRENGTH;
-                        const sp = Math.hypot(a.vx, a.vy), max = CONFIG.ARROW_SPEED*1.5;
-                        if (sp > max) { a.vx *= max/sp; a.vy *= max/sp; }
-                    }
-                }
-                a.x += a.vx; a.y += a.vy; a.life--;
-                if (a.x < BOX.x || a.x > BOX.x+BOX.w || a.y < BOX.y || a.y > BOX.y+BOX.h || a.life <= 0) return false;
-                const t = a.owner === 'blue' ? red : blue;
-                if (Math.hypot(a.x-t.x, a.y-t.y) < CONFIG.PLAYER_RADIUS+10) { 
-                    applyDamage(t, a.damage, a.owner); 
-                    return false; 
-                }
-                return true; 
-            }); 
-        }
-        
-        function updateTNT() { 
-            tntMarks = tntMarks.filter(m => { 
-                m.timer--;
-                if (m.timer <= 0) { 
-                    [blue, red].forEach(t => { 
-                        if (m.owner==='blue' && t===blue) return;
-                        if (m.owner==='red' && t===red) return;
-                        const dist = Math.hypot(m.x-t.x, m.y-t.y);
-                        if (dist < CONFIG.TNT_RADIUS) { 
-                            const dmg = Math.round(CONFIG.TNT_DAMAGE_MAX - (dist/CONFIG.TNT_RADIUS)*(CONFIG.TNT_DAMAGE_MAX-CONFIG.TNT_DAMAGE_MIN));
-                            applyDamage(t, dmg, m.owner);
+        function updateMovement(dt) {
+            if (!gameStarted || devTimeStopped) return;
+            
+            if ((blue.hp <= 0 || red.hp <= 0) && !winnerDeclared) {
+                if (deathTimer === 0) deathTimer = CONFIG.DEATH_DELAY;
+                else {
+                    deathTimer--;
+                    if (deathTimer <= 0) {
+                        winnerDeclared = true; victorySoundPlayed = true;
+                        playSound('level_up'); gameStarted = false;
+                        
+                        // СБРОС ГОТОВНОСТИ ПОСЛЕ СМЕРТИ
+                        playersReady = { blue: false, red: false };
+                        if (isMultiplayer && roomRef) {
+                            roomRef.child('host/ready').set(false);
+                            roomRef.child('guest/ready').set(false);
                         }
-                    });
-                    const cloud = { x: m.x, y: m.y, timer: CONFIG.POISON_DURATION, owner: m.owner, type: 'poisonCloud' };
-                    poisonClouds.push(cloud);
-                    
-                    if (isMultiplayer && playerRole === m.owner) {
-                        syncProjectile('poisonCloud', cloud);
                     }
-                    
-                    return false; 
                 }
-                return true; 
-            }); 
-        }
-        
-        function updatePoison() { 
-            poisonClouds = poisonClouds.filter(c => { 
-                c.timer--;
-                if (c.timer <= 0) return false;
-                if (c.timer % 60 === 0) { 
-                    [blue, red].forEach(t => { 
-                        if (c.owner==='blue' && t===blue) return;
-                        if (c.owner==='red' && t===red) return;
-                        if (Math.hypot(c.x-t.x, c.y-t.y) < CONFIG.TNT_RADIUS) {
-                            applyDamage(t, CONFIG.POISON_DAMAGE, c.owner);
-                        }
-                    }); 
-                }
-                return true; 
-            }); 
-        }
-        
-        function updateHooks() { 
-            [blueHook, redHook].forEach(h => { 
-                if (!h) return;
-                
-                if (h.returning) { 
-                    const o = h.owner==='blue'?blue:red;
-                    const dx = o.x-h.x, dy = o.y-h.y, dist = Math.hypot(dx, dy);
-                    if (dist < 30) { 
-                        if (h.owner==='blue') { blueHook = null; blue.rodCooldown = CONFIG.ROD_COOLDOWN; } 
-                        else { redHook = null; red.rodCooldown = CONFIG.ROD_COOLDOWN; } 
-                    } else { 
-                        h.x += (dx/dist)*CONFIG.HOOK_SPEED*1.5; 
-                        h.y += (dy/dist)*CONFIG.HOOK_SPEED*1.5; 
-                    } 
-                    return; 
-                }
-                
-                h.x += h.vx; h.y += h.vy;
-                
-                if (h.x < BOX.x || h.x > BOX.x+BOX.w) { 
-                    h.vx = -h.vx; h.bounces++; 
-                    h.x = Math.max(BOX.x, Math.min(BOX.x+BOX.w, h.x));
-                    wallMarks.push({ x: h.x, y: h.y, timer: 30 }); 
-                }
-                if (h.y < BOX.y || h.y > BOX.y+BOX.h) { 
-                    h.vy = -h.vy; h.bounces++; 
-                    h.y = Math.max(BOX.y, Math.min(BOX.y+BOX.h, h.y));
-                    wallMarks.push({ x: h.x, y: h.y, timer: 30 }); 
-                }
-                
-                const t = h.owner==='blue'?red:blue;
-                if (!h.caught) { 
-                    if (Math.hypot(h.x-t.x, h.y-t.y) < CONFIG.PLAYER_RADIUS+5) { 
-                        h.caught = t; 
-                        applyDamage(t, h.bounces*CONFIG.ROD_DAMAGE_PER_BOUNCE, h.owner); 
-                        h.returning = true; 
-                    } 
-                } else { 
-                    const o = h.owner==='blue'?blue:red;
-                    h.caught.x += (o.x-h.caught.x)*0.15; 
-                    h.caught.y += (o.y-h.caught.y)*0.15; 
-                }
-                
-                if (h.bounces >= CONFIG.MAX_BOUNCES) h.returning = true;
-            }); 
-        }
-        
-        function updateAxe() { 
-            [blue, red].forEach(o => { 
-                if (o.weapon !== 'axe') return;
-                let ax = o.x + Math.cos(axeAngle) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_X;
-                let ay = o.y + Math.sin(axeAngle) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_Y;
-                const t = o === blue ? red : blue;
-                if (Math.hypot(ax - t.x, ay - t.y) < CONFIG.AXE_HITBOX_RADIUS + CONFIG.PLAYER_RADIUS && axeCooldown <= 0) { 
-                    applyDamage(t, CONFIG.AXE_DAMAGE, o === blue ? 'blue' : 'red');
-                    const ang = Math.atan2(t.y - ay, t.x - ax);
-                    t.vx = Math.cos(ang) * CONFIG.AXE_KNOCKBACK; 
-                    t.vy = Math.sin(ang) * CONFIG.AXE_KNOCKBACK;
-                    axeCooldown = CONFIG.AXE_COOLDOWN;
-                } 
-            }); 
+            }
+            
+            deathParticles = deathParticles.filter(p => { p.x += p.vx; p.y += p.vy; p.vx *= 0.96; p.vy *= 0.96; p.life--; return p.life > 0; });
+            updatePowerups();
+            
+            if (isMultiplayer && gameStarted) sendPlayerState();
+            
+            const dtMultiplier = devSpeedMultiplier;
+            const iterations = Math.max(2, Math.floor(CONFIG.PHYSICS_ITERATIONS * (dt / 16.67)));
             
             if (!isMultiplayer || playerRole === 'blue') {
-                axeAngle += CONFIG.AXE_ROTATION_SPEED;
-                if (isMultiplayer) {
-                    roomRef.child('axeAngle').set(axeAngle);
-                }
-            }
-        }
-        
-        // ==================== ОБНОВЛЕНИЕ ДВИЖЕНИЯ ====================
-        function updateMovement(dt) {
-            if (!gameStarted) return;
-            
-            // Проверка окончания игры
-            if (blue.hp <= 0 || red.hp <= 0) { 
-                gameStarted = false;
-                playersReady = { blue: false, red: false };
-                
-                if (isMultiplayer) {
-                    // Сбрасываем состояние готовности, но НЕ connected
-                    const updates = {
-                        gameStarted: false,
-                        'host/ready': false,
-                        'guest/ready': false,
-                        blue: serializePlayer(blue),
-                        red: serializePlayer(red)
-                    };
-                    roomRef.update(updates);
-                }
-                return; 
-            }
-            
-            // Управление синим игроком
-            if (!isMultiplayer || playerRole === 'blue') { 
-                let ax = 0, ay = 0; 
-                const mult = blue.shieldActive ? CONFIG.SHIELD_SPEED_MULTIPLIER : 1;
-                if (keys.up) ay = -CONFIG.BLUE_ACCEL * mult;
-                if (keys.down) ay = CONFIG.BLUE_ACCEL * mult;
-                if (keys.left) ax = -CONFIG.BLUE_ACCEL * mult;
-                if (keys.right) ax = CONFIG.BLUE_ACCEL * mult;
-                
-                blue.vx += ax * (dt/1000); 
-                blue.vy += ay * (dt/1000);
-                blue.vx *= CONFIG.FRICTION; 
-                blue.vy *= CONFIG.FRICTION;
-                
-                let sp = Math.hypot(blue.vx, blue.vy);
-                if (sp > CONFIG.MAX_SPEED) { 
-                    blue.vx *= CONFIG.MAX_SPEED/sp; 
-                    blue.vy *= CONFIG.MAX_SPEED/sp; 
-                }
-                if ((keys.up||keys.down||keys.left||keys.right) && sp < CONFIG.MIN_SPEED && sp > 0.1) { 
-                    blue.vx = blue.vx/sp*CONFIG.MIN_SPEED; 
-                    blue.vy = blue.vy/sp*CONFIG.MIN_SPEED; 
-                }
-                
-                blue.x += blue.vx * (dt/1000); 
-                blue.y += blue.vy * (dt/1000);
-                clampInBox(blue, true);
-            }
-            
-            // Управление красным игроком
-            if (!isMultiplayer || playerRole === 'red') { 
-                if (!isMultiplayer) { 
-                    // Бот
-                    let rsp = Math.hypot(red.vx, red.vy);
-                    if (rsp < CONFIG.MAX_SPEED) { 
-                        let nsp = Math.min(rsp + CONFIG.RED_ACCEL*(dt/1000), CONFIG.MAX_SPEED);
-                        if (rsp > 0.001) { 
-                            red.vx = red.vx/rsp*nsp; 
-                            red.vy = red.vy/rsp*nsp; 
-                        } else { 
-                            let a = Math.random()*2*Math.PI;
-                            red.vx = Math.cos(a)*nsp; 
-                            red.vy = Math.sin(a)*nsp; 
-                        } 
-                    } else { 
-                        red.vx = red.vx/rsp*CONFIG.MAX_SPEED; 
-                        red.vy = red.vy/rsp*CONFIG.MAX_SPEED; 
-                    }
-                } else { 
-                    // Игрок
-                    let ax = 0, ay = 0; 
-                    const mult = red.shieldActive ? CONFIG.SHIELD_SPEED_MULTIPLIER : 1;
+                if (!blue.isDead) {
+                    const buffs = blueBuffs;
+                    let ax = 0, ay = 0;
+                    const mult = (blue.shieldActive ? CONFIG.SHIELD_SPEED_MULTIPLIER : 1) * buffs.speed;
                     if (keys.up) ay = -CONFIG.BLUE_ACCEL * mult;
                     if (keys.down) ay = CONFIG.BLUE_ACCEL * mult;
                     if (keys.left) ax = -CONFIG.BLUE_ACCEL * mult;
                     if (keys.right) ax = CONFIG.BLUE_ACCEL * mult;
-                    
-                    red.vx += ax * (dt/1000); 
-                    red.vy += ay * (dt/1000);
-                    red.vx *= CONFIG.FRICTION; 
-                    red.vy *= CONFIG.FRICTION;
-                    
-                    let sp = Math.hypot(red.vx, red.vy);
-                    if (sp > CONFIG.MAX_SPEED) { 
-                        red.vx *= CONFIG.MAX_SPEED/sp; 
-                        red.vy *= CONFIG.MAX_SPEED/sp; 
+                    blue.vx += ax * (dt/1000) * dtMultiplier;
+                    blue.vy += ay * (dt/1000) * dtMultiplier;
+                    blue.vx *= CONFIG.FRICTION; blue.vy *= CONFIG.FRICTION;
+                    let sp = Math.hypot(blue.vx, blue.vy);
+                    if (sp > CONFIG.MAX_SPEED * buffs.speed) { blue.vx *= (CONFIG.MAX_SPEED * buffs.speed)/sp; blue.vy *= (CONFIG.MAX_SPEED * buffs.speed)/sp; }
+                    if ((keys.up||keys.down||keys.left||keys.right) && sp < CONFIG.MIN_SPEED * buffs.speed && sp > 0.1) { blue.vx = blue.vx/sp*CONFIG.MIN_SPEED*buffs.speed; blue.vy = blue.vy/sp*CONFIG.MIN_SPEED*buffs.speed; }
+                    blue.x += blue.vx * (dt/1000) * dtMultiplier;
+                    blue.y += blue.vy * (dt/1000) * dtMultiplier;
+                    blue.facing = red.x > blue.x ? 1 : -1;
+                }
+                clampInBox(blue, true);
+            }
+            
+            if (!isMultiplayer || playerRole === 'red') {
+                if (!red.isDead) {
+                    if (!isMultiplayer) {
+                        const buffs = redBuffs;
+                        let rsp = Math.hypot(red.vx, red.vy);
+                        if (rsp < CONFIG.MAX_SPEED * buffs.speed) {
+                            let nsp = Math.min(rsp + CONFIG.RED_ACCEL*(dt/1000)*dtMultiplier, CONFIG.MAX_SPEED * buffs.speed);
+                            if (rsp > 0.001) { red.vx = red.vx/rsp*nsp; red.vy = red.vy/rsp*nsp; }
+                            else { let a = Math.random()*2*Math.PI; red.vx = Math.cos(a)*nsp; red.vy = Math.sin(a)*nsp; }
+                        } else { red.vx = red.vx/rsp*CONFIG.MAX_SPEED*buffs.speed; red.vy = red.vy/rsp*CONFIG.MAX_SPEED*buffs.speed; }
+                        red.x += red.vx * (dt/1000) * dtMultiplier;
+                        red.y += red.vy * (dt/1000) * dtMultiplier;
+                    } else {
+                        const buffs = redBuffs;
+                        let ax = 0, ay = 0;
+                        const mult = (red.shieldActive ? CONFIG.SHIELD_SPEED_MULTIPLIER : 1) * buffs.speed;
+                        if (keys.up) ay = -CONFIG.BLUE_ACCEL * mult;
+                        if (keys.down) ay = CONFIG.BLUE_ACCEL * mult;
+                        if (keys.left) ax = -CONFIG.BLUE_ACCEL * mult;
+                        if (keys.right) ax = CONFIG.BLUE_ACCEL * mult;
+                        red.vx += ax * (dt/1000) * dtMultiplier;
+                        red.vy += ay * (dt/1000) * dtMultiplier;
+                        red.vx *= CONFIG.FRICTION; red.vy *= CONFIG.FRICTION;
+                        let sp = Math.hypot(red.vx, red.vy);
+                        if (sp > CONFIG.MAX_SPEED * buffs.speed) { red.vx *= (CONFIG.MAX_SPEED * buffs.speed)/sp; red.vy *= (CONFIG.MAX_SPEED * buffs.speed)/sp; }
+                        red.x += red.vx * (dt/1000) * dtMultiplier;
+                        red.y += red.vy * (dt/1000) * dtMultiplier;
                     }
                 }
-                
-                red.x += red.vx * (dt/1000); 
-                red.y += red.vy * (dt/1000);
                 clampInBox(red, true);
             }
             
-            // Обработка коллизий
-            for(let i = 0; i < 5; i++) { 
-                handleCollision(); 
-                clampInBox(blue); 
-                clampInBox(red); 
-            }
+            for(let i = 0; i < iterations; i++) { handleCollision(); clampInBox(blue); clampInBox(red); }
+            
+            const myPlayer = isMultiplayer ? (playerRole === 'blue' ? blue : red) : blue;
+            lowHpVignette = myPlayer.hp < CONFIG.LOW_HP_THRESHOLD ? 1 - (myPlayer.hp / CONFIG.LOW_HP_THRESHOLD) : 0;
+        }
+
+        // ========== СЕКЦИЯ 3: ОТРИСОВКА (CANVAS) ==========
+        
+        function drawBackgroundToCache() {
+            const cacheCanvas = document.createElement('canvas');
+            cacheCanvas.width = W; cacheCanvas.height = H;
+            const cacheCtx = cacheCanvas.getContext('2d');
+            
+            cacheCtx.fillStyle = '#0a0a0a';
+            cacheCtx.fillRect(0,0,W,H);
+            
+            cacheCtx.fillStyle = '#1a1a1a';
+            for(let i=0;i<40;i++) { if(i%2===0) continue; cacheCtx.fillRect(30+(i*17)%W,20+(i*23)%H,2,2); }
+            cacheCtx.fillStyle='#0a0a0a'; cacheCtx.fillRect(BOX.x,BOX.y,BOX.w,BOX.h);
+            cacheCtx.strokeStyle='#c0c0c0'; cacheCtx.lineWidth=2;
+            cacheCtx.beginPath(); cacheCtx.moveTo(BOX.x+BOX.w/2,BOX.y); cacheCtx.lineTo(BOX.x+BOX.w/2,BOX.y+BOX.h); cacheCtx.stroke();
+            cacheCtx.beginPath(); cacheCtx.arc(BOX.x+BOX.w/2,BOX.y+BOX.h/2,50,0,2*Math.PI); cacheCtx.stroke();
+            cacheCtx.strokeStyle='#888888'; cacheCtx.lineWidth=3;
+            cacheCtx.strokeRect(BOX.x,BOX.y,BOX.w,BOX.h);
+            
+            return cacheCanvas;
         }
         
-        // ==================== ОТРИСОВКА ====================
-        function drawWeapon(x, y, facing, type, isAxe=false, axeX=0, axeY=0) {
+        function drawBackground() {
+            if (potatoMode) {
+                if (!cachedBackground) cachedBackground = drawBackgroundToCache();
+                ctx.drawImage(cachedBackground, 0, 0);
+                return;
+            }
+            
+            ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0,0,W,H);
+            ctx.fillStyle = '#1a1a1a';
+            for(let i=0;i<40;i++) { if(i%2===0) continue; ctx.fillRect(30+(i*17)%W,20+(i*23)%H,2,2); }
+            ctx.fillStyle='#0a0a0a'; ctx.fillRect(BOX.x,BOX.y,BOX.w,BOX.h);
+            ctx.strokeStyle='#c0c0c0'; ctx.lineWidth=2;
+            ctx.beginPath(); ctx.moveTo(BOX.x+BOX.w/2,BOX.y); ctx.lineTo(BOX.x+BOX.w/2,BOX.y+BOX.h); ctx.stroke();
+            ctx.beginPath(); ctx.arc(BOX.x+BOX.w/2,BOX.y+BOX.h/2,50,0,2*Math.PI); ctx.stroke();
+            ctx.strokeStyle='#888888'; ctx.lineWidth=3;
+            ctx.strokeRect(BOX.x,BOX.y,BOX.w,BOX.h);
+        }
+        
+        function drawWeapon(x, y, facing, type, isAxe=false, axeX=0, axeY=0, playerRef=null) {
             ctx.save(); 
-            ctx.translate(isAxe ? axeX : x, isAxe ? axeY : y); 
-            if (facing < 0 && !isAxe) ctx.scale(-1, 1); 
-            ctx.imageSmoothingEnabled = false;
+            ctx.translate(isAxe ? axeX : x, isAxe ? axeY : y);
             
-            let imgKey = type; 
-            if (type === 'blaze') imgKey = 'blaze_rod';
+            if (isAxe && playerRef) {
+                const angleToPlayer = Math.atan2(playerRef.y - axeY, playerRef.x - axeX);
+                ctx.rotate(angleToPlayer - Math.PI/2);
+            } else if (facing < 0 && !isAxe) {
+                ctx.scale(-1, 1);
+            }
             
-            const img = weaponImages[imgKey]; 
-            const loaded = imageLoaded[imgKey] && img.complete && img.naturalWidth > 0;
-            const sizes = { 
-                rod: [56, 56, 10, -30, 0], 
-                axe: [64, 64, 8, -35, -30], 
-                tnt: [60, 60, 12, -28, 0], 
-                bow: [64, 64, 8, -28, 0], 
-                shield: [52, 72, 10, -28, 0], 
-                bell: [56, 56, 8, -25, 0], 
-                blaze_rod: [40, 40, -5, -20, 0] 
-            };
-            const [w, h, ox, oy, rot] = sizes[imgKey] || [50, 50, 0, 0, 0];
+            ctx.imageSmoothingEnabled = !potatoMode;
             
+            let imgKey = type; if (type === 'blaze') imgKey = 'blaze_rod';
+            const img = weaponImages[imgKey]; const loaded = imageLoaded[imgKey] && img.complete && img.naturalWidth > 0;
+            const sizes = { rod: [56, 56, 10, -30, 0], axe: [64, 64, 8, -35, -30], tnt: [60, 60, 12, -28, 0], bow: [64, 64, 8, -28, 0], shield: [52, 72, 10, -28, 0], bell: [56, 56, 8, -25, 0], blaze_rod: [40, 40, -5, -20, 0] };
+            const [w,h,ox,oy,rot] = sizes[imgKey]||[50,50,0,0,0];
             if (loaded) { 
                 ctx.rotate(rot*Math.PI/180); 
                 if (imgKey === 'shield' || imgKey === 'bow') { 
@@ -877,753 +980,353 @@
             ctx.restore();
         }
         
+        function drawPowerups() {
+            powerups.forEach(p => {
+                const alpha = 0.7 + Math.sin(Date.now() * 0.01) * 0.3; ctx.save(); ctx.translate(p.x, p.y);
+                if (CONFIG.ENABLE_SHADOWS) { 
+                    ctx.shadowColor = p.type === 'enchanted_book' ? '#c97bff' : (p.type === 'shield' ? '#00BFFF' : (p.type === 'apple' ? '#55FF55' : '#8B0000')); 
+                    ctx.shadowBlur = 20; 
+                }
+                ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, 2*Math.PI); ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.3})`; ctx.fill();
+                const img = weaponImages[p.type];
+                if (img && img.complete) { if (CONFIG.ENABLE_SHADOWS) ctx.shadowBlur = 15; ctx.drawImage(img, -20, -20, 40, 40); }
+                else { ctx.font = '24px "Courier New"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'white'; if (CONFIG.ENABLE_SHADOWS) ctx.shadowBlur = 15; ctx.fillText(p.type === 'enchanted_book' ? '📖' : (p.type === 'shield' ? '🛡️' : (p.type === 'apple' ? '🍎' : '🥀')), 0, 0); }
+                ctx.restore();
+            });
+        }
+        
         function drawPlayer(p, col, scol, shcol) {
-            const R = CONFIG.PLAYER_RADIUS;
-            
-            if (p.hitWall && p.weapon === 'bell') { 
-                ctx.shadowColor = '#FFD700'; 
-                ctx.shadowBlur = 25; 
+            if (p.isDead) return;
+            const R = CONFIG.PLAYER_RADIUS; const buffs = p === blue ? blueBuffs : redBuffs;
+            if (CONFIG.ENABLE_SHADOWS) { 
+                if (buffs.damage > 1 || buffs.speed > 1) { ctx.shadowColor = '#c97bff'; ctx.shadowBlur = 25; } 
+                else if (buffs.shield > 0 || buffs.invincible > 0) { ctx.shadowColor = '#00BFFF'; ctx.shadowBlur = 25; } 
             }
-            
-            if (p.shieldActive) { 
-                ctx.strokeStyle = shcol; 
-                ctx.lineWidth = 4; 
-                ctx.beginPath(); 
-                ctx.arc(p.x, p.y, R+5, 0, 2*Math.PI); 
-                ctx.stroke(); 
-            }
-            
+            if (p.hitWall && p.weapon === 'bell' && CONFIG.ENABLE_SHADOWS) { ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 25; }
+            if (p.shieldActive) { ctx.strokeStyle=shcol; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(p.x,p.y,R+5,0,2*Math.PI); ctx.stroke(); }
             const pulse = p.hp < 30 ? 1 + Math.sin(Date.now() * 0.02) * 0.05 : 1;
-            ctx.beginPath(); 
-            ctx.arc(p.x, p.y, R * pulse, 0, 2*Math.PI); 
-            ctx.fillStyle = col; 
-            ctx.fill(); 
-            ctx.strokeStyle = scol; 
-            ctx.lineWidth = 3; 
-            ctx.stroke();
+            ctx.beginPath(); ctx.arc(p.x, p.y, R * pulse, 0, 2*Math.PI); ctx.fillStyle=col; ctx.fill(); ctx.strokeStyle=scol; ctx.lineWidth=3; ctx.stroke();
+            ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+            ctx.fillStyle='white'; ctx.font='bold 22px "Courier New"'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(Math.floor(p.hp), p.x, p.y);
             
-            ctx.shadowBlur = 0; 
-            ctx.shadowColor = 'transparent';
-            
-            ctx.fillStyle = 'white'; 
-            ctx.font = 'bold 22px "Courier New"'; 
-            ctx.textAlign = 'center'; 
-            ctx.textBaseline = 'middle'; 
-            ctx.fillText(Math.floor(p.hp), p.x, p.y);
-            
-            if (p.weapon === 'blaze') { 
-                const angle = p.blazeAngle || 0; 
-                for (let i = 0; i < 3; i++) { 
-                    const rodAngle = angle + (i * 2 * Math.PI / 3); 
-                    const rodX = p.x + Math.cos(rodAngle) * CONFIG.BLAZE_ORBIT_RADIUS; 
-                    const rodY = p.y + Math.sin(rodAngle) * CONFIG.BLAZE_ORBIT_RADIUS; 
-                    ctx.save(); 
-                    ctx.translate(rodX, rodY); 
-                    ctx.rotate(rodAngle + Math.PI/2); 
-                    drawWeapon(0, 0, 1, 'blaze_rod'); 
-                    ctx.restore(); 
-                } 
+            if (devShowHitboxes) {
+                ctx.strokeStyle = 'lime'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, 2*Math.PI); ctx.stroke();
             }
             
-            if (p.weapon !== 'axe' && p.weapon !== 'blaze') {
-                drawWeapon(p.x, p.y, p.facing, p.weapon);
-            }
+            if (buffs.damage > 1) { ctx.font = '16px "Courier New"'; ctx.fillStyle = '#FFD700'; ctx.fillText('⚡', p.x, p.y - R - 10); }
+            if (buffs.shield > 0) { ctx.font = '16px "Courier New"'; ctx.fillStyle = '#00BFFF'; ctx.fillText('🛡️', p.x + (buffs.damage > 1 ? 15 : 0), p.y - R - 10); }
             
-            if (p.bowCharging) { 
-                const bw = 60, bx = p.x-bw/2, by = p.y-R-15; 
-                ctx.fillStyle = '#333'; 
-                ctx.fillRect(bx, by, bw, 6); 
-                ctx.fillStyle = '#FFAA00'; 
-                ctx.fillRect(bx, by, bw*(p.bowCharge/CONFIG.BOW_MAX_CHARGE), 6); 
-            }
+            if (p.weapon === 'blaze') { const angle = p.blazeAngle || 0; for (let i = 0; i < 3; i++) { const rodAngle = angle + (i * 2 * Math.PI / 3); const rodX = p.x + Math.cos(rodAngle) * CONFIG.BLAZE_ORBIT_RADIUS; const rodY = p.y + Math.sin(rodAngle) * CONFIG.BLAZE_ORBIT_RADIUS; ctx.save(); ctx.translate(rodX, rodY); ctx.rotate(rodAngle + Math.PI/2); drawWeapon(0, 0, 1, 'blaze_rod'); ctx.restore(); } }
+            if (p.weapon !== 'axe' && p.weapon !== 'blaze') drawWeapon(p.x, p.y, p.facing, p.weapon);
+            if (p.bowCharging) { const bw=60, bx=p.x-bw/2, by=p.y-R-15; ctx.fillStyle='#333'; ctx.fillRect(bx,by,bw,6); ctx.fillStyle='#FFAA00'; ctx.fillRect(bx,by,bw*(p.bowCharge/CONFIG.BOW_MAX_CHARGE),6); }
         }
         
         function draw() {
-            const grad = ctx.createRadialGradient(200, 150, 50, 350, 350, 500); 
-            grad.addColorStop(0, '#0a1622'); 
-            grad.addColorStop(1, '#03080e'); 
-            ctx.fillStyle = grad; 
-            ctx.fillRect(0, 0, W, H);
+            drawBackground(); drawPowerups();
+            blazeBalls.forEach(b => { const img = weaponImages.fire_charge; if (imageLoaded.fire_charge && img.complete) { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Date.now() * 0.01); ctx.drawImage(img, -16, -16, 32, 32); ctx.restore(); } else { ctx.fillStyle = '#FF6600'; ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, 2*Math.PI); ctx.fill(); } });
+            bellWaves.forEach(w => { const alpha = w.life; if (CONFIG.ENABLE_SHADOWS) { ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 20; } ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(w.x, w.y, w.radius, 0, 2*Math.PI); ctx.stroke(); ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.2})`; ctx.fill(); ctx.shadowBlur = 0; });
+            poisonClouds.forEach(c => { ctx.fillStyle=`rgba(128,128,128,${c.timer/CONFIG.POISON_DURATION*0.5})`; ctx.beginPath(); ctx.arc(c.x,c.y,CONFIG.TNT_RADIUS,0,2*Math.PI); ctx.fill(); });
+            tntMarks.forEach(m => { ctx.strokeStyle='#8B3A3A'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(m.x,m.y,CONFIG.TNT_RADIUS,0,2*Math.PI); ctx.stroke(); ctx.fillStyle='#8B3A3A80'; ctx.beginPath(); ctx.arc(m.x,m.y,CONFIG.TNT_RADIUS,0,2*Math.PI); ctx.fill(); });
+            wallMarks.forEach(m => { ctx.fillStyle='#FFFFFF'; ctx.beginPath(); ctx.arc(m.x,m.y,8,0,2*Math.PI); ctx.fill(); });
+            arrows.forEach(a => { ctx.strokeStyle='#8B6914'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(a.x-a.vx*2,a.y-a.vy*2); ctx.lineTo(a.x,a.y); ctx.stroke(); ctx.fillStyle='#DAA520'; ctx.beginPath(); ctx.arc(a.x,a.y,4,0,2*Math.PI); ctx.fill(); });
+            deathParticles.forEach(p => { ctx.fillStyle = '#8B0000'; if (CONFIG.ENABLE_SHADOWS) { ctx.shadowColor = '#FF0000'; ctx.shadowBlur = 10; } ctx.beginPath(); ctx.ellipse(p.x, p.y, p.size * 0.6, p.size * 0.3, Math.atan2(p.vy, p.vx), 0, 2 * Math.PI); ctx.fill(); });
+            ctx.shadowBlur = 0;
             
-            ctx.fillStyle = '#e0e8ff'; 
-            for(let i = 0; i < 40; i++) { 
-                if(i % 2 === 0) continue; 
-                ctx.fillRect(30+(i*17)%W, 20+(i*23)%H, 2, 2); 
+            drawPlayer(blue,'#4a8ec9','#1e4f7a','#3DFFF0');
+            drawPlayer(red,'#c95a5a','#8a2e2e','#FF4444');
+            
+            [blue, red].forEach(p => {
+                if (p.isDead || p.weapon !== 'axe') return;
+                const angles = [axeAngle, axeAngle + Math.PI];
+                angles.forEach(ang => {
+                    let ax = p.x + Math.cos(ang) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_X;
+                    let ay = p.y + Math.sin(ang) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_Y;
+                    drawWeapon(0, 0, p === blue ? 1 : -1, 'axe', true, ax, ay, p);
+                    
+                    if (devShowHitboxes) {
+                        ctx.strokeStyle = 'orange';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(ax, ay, CONFIG.AXE_HITBOX_RADIUS, 0, 2*Math.PI);
+                        ctx.stroke();
+                    }
+                });
+            });
+            
+            [blueHook, redHook].forEach(h => { if(!h) return; ctx.beginPath(); ctx.moveTo(h.owner==='blue'?blue.x:red.x, h.owner==='blue'?blue.y:red.y); ctx.lineTo(h.x,h.y); ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=2; ctx.stroke(); });
+            
+            if (hitFlashAlpha > 0) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${hitFlashAlpha / CONFIG.HIT_FLASH_DURATION * 0.5})`;
+                ctx.fillRect(0, 0, W, H);
             }
             
-            ctx.fillStyle = '#d6eaf8'; 
-            ctx.fillRect(BOX.x, BOX.y, BOX.w, BOX.h); 
-            ctx.strokeStyle = '#85c1e9'; 
-            ctx.lineWidth = 2; 
-            ctx.beginPath(); 
-            ctx.moveTo(BOX.x+BOX.w/2, BOX.y); 
-            ctx.lineTo(BOX.x+BOX.w/2, BOX.y+BOX.h); 
-            ctx.stroke(); 
-            ctx.beginPath(); 
-            ctx.arc(BOX.x+BOX.w/2, BOX.y+BOX.h/2, 50, 0, 2*Math.PI); 
-            ctx.stroke(); 
-            ctx.strokeStyle = '#1e3349'; 
-            ctx.lineWidth = 5; 
-            ctx.strokeRect(BOX.x, BOX.y, BOX.w, BOX.h);
-            
-            // Отрисовка снарядов
-            blazeBalls.forEach(b => { 
-                const img = weaponImages.fire_charge; 
-                if (imageLoaded.fire_charge && img.complete) { 
-                    ctx.save(); 
-                    ctx.translate(b.x, b.y); 
-                    ctx.rotate(Date.now() * 0.01); 
-                    ctx.drawImage(img, -16, -16, 32, 32); 
-                    ctx.restore(); 
-                } else { 
-                    ctx.fillStyle = '#FF6600'; 
-                    ctx.beginPath(); 
-                    ctx.arc(b.x, b.y, 10, 0, 2*Math.PI); 
-                    ctx.fill(); 
-                } 
-            });
-            
-            bellWaves.forEach(w => { 
-                const alpha = w.life; 
-                ctx.shadowColor = '#FFD700'; 
-                ctx.shadowBlur = 20; 
-                ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`; 
-                ctx.lineWidth = 6; 
-                ctx.beginPath(); 
-                ctx.arc(w.x, w.y, w.radius, 0, 2*Math.PI); 
-                ctx.stroke(); 
-                ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.2})`; 
-                ctx.fill(); 
-                ctx.shadowBlur = 0; 
-            });
-            
-            poisonClouds.forEach(c => { 
-                ctx.fillStyle = `rgba(128, 128, 128, ${c.timer/CONFIG.POISON_DURATION*0.5})`; 
-                ctx.beginPath(); 
-                ctx.arc(c.x, c.y, CONFIG.TNT_RADIUS, 0, 2*Math.PI); 
-                ctx.fill(); 
-            });
-            
-            tntMarks.forEach(m => { 
-                ctx.strokeStyle = '#8B3A3A'; 
-                ctx.lineWidth = 4; 
-                ctx.beginPath(); 
-                ctx.arc(m.x, m.y, CONFIG.TNT_RADIUS, 0, 2*Math.PI); 
-                ctx.stroke(); 
-                ctx.fillStyle = '#8B3A3A80'; 
-                ctx.beginPath(); 
-                ctx.arc(m.x, m.y, CONFIG.TNT_RADIUS, 0, 2*Math.PI); 
-                ctx.fill(); 
-            });
-            
-            wallMarks.forEach(m => { 
-                ctx.fillStyle = '#FFFFFF'; 
-                ctx.beginPath(); 
-                ctx.arc(m.x, m.y, 8, 0, 2*Math.PI); 
-                ctx.fill(); 
-            });
-            
-            arrows.forEach(a => { 
-                ctx.strokeStyle = '#8B6914'; 
-                ctx.lineWidth = 3; 
-                ctx.beginPath(); 
-                ctx.moveTo(a.x-a.vx*2, a.y-a.vy*2); 
-                ctx.lineTo(a.x, a.y); 
-                ctx.stroke(); 
-                ctx.fillStyle = '#DAA520'; 
-                ctx.beginPath(); 
-                ctx.arc(a.x, a.y, 4, 0, 2*Math.PI); 
-                ctx.fill(); 
-            });
-            
-            drawPlayer(blue, '#4a8ec9', '#1e4f7a', '#3DFFF0'); 
-            drawPlayer(red, '#c95a5a', '#8a2e2e', '#FF4444');
-            
-            [blue, red].forEach(p => { 
-                if (p.weapon !== 'axe') return; 
-                let ax = p.x + Math.cos(axeAngle) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_X; 
-                let ay = p.y + Math.sin(axeAngle) * CONFIG.AXE_ORBIT_RADIUS + CONFIG.AXE_OFFSET_Y; 
-                drawWeapon(0, 0, p === blue ? 1 : -1, 'axe', true, ax, ay); 
-            });
-            
-            [blueHook, redHook].forEach(h => { 
-                if(!h) return; 
-                ctx.beginPath(); 
-                ctx.moveTo(h.owner==='blue'?blue.x:red.x, h.owner==='blue'?blue.y:red.y); 
-                ctx.lineTo(h.x, h.y); 
-                ctx.strokeStyle = '#FFFFFF'; 
-                ctx.lineWidth = 2; 
-                ctx.stroke(); 
-            });
+            if (lowHpVignette > 0) {
+                ctx.save();
+                const gradient = ctx.createRadialGradient(W/2, H/2, 100, W/2, H/2, 400);
+                gradient.addColorStop(0, 'transparent');
+                gradient.addColorStop(1, `rgba(150, 0, 0, ${lowHpVignette * 0.4})`);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, W, H);
+                
+                ctx.strokeStyle = `rgba(200, 0, 0, ${lowHpVignette * 0.8})`;
+                ctx.lineWidth = 15;
+                ctx.strokeRect(5, 5, W - 10, H - 10);
+                ctx.restore();
+            }
             
             if (!gameStarted) {
-                ctx.fillStyle = '#000000aa'; 
-                ctx.fillRect(0, 0, W, H); 
-                ctx.font = 'bold 34px "Courier New"'; 
-                ctx.fillStyle = '#e0e8ff'; 
-                ctx.shadowColor = '#000'; 
-                ctx.shadowBlur = 16;
-                
-                let txt; 
-                if (isMultiplayer) { 
-                    const readyCount = (playersReady.blue ? 1 : 0) + (playersReady.red ? 1 : 0); 
-                    txt = `ГОТОВНОСТЬ ${readyCount}/2`; 
-                } else { 
-                    txt = blue.hp <= 0 ? 'RED WINS!' : red.hp <= 0 ? 'BLUE WINS!' : 'CLICK TO START'; 
-                }
-                
-                ctx.fillText(txt, W/2, H/2); 
-                ctx.shadowBlur = 0;
+                ctx.fillStyle='#000000aa'; ctx.fillRect(0,0,W,H); ctx.font='bold 34px "Courier New"'; ctx.fillStyle='#e0e8ff'; if (CONFIG.ENABLE_SHADOWS) { ctx.shadowColor='#000'; ctx.shadowBlur=16; }
+                let txt; if (isMultiplayer) { const readyCount = (playersReady.blue ? 1 : 0) + (playersReady.red ? 1 : 0); txt = `ГОТОВНОСТЬ ${readyCount}/2`; } else { txt = blue.hp<=0 ? 'RED WINS!' : red.hp<=0 ? 'BLUE WINS!' : 'CLICK TO START'; }
+                ctx.fillText(txt,W/2,H/2); ctx.shadowBlur=0;
             }
         }
+
+        // ========== СЕКЦИЯ 4: МУЛЬТИПЛЕЕР (FIREBASE) ==========
         
-        // ==================== FIREBASE МУЛЬТИПЛЕЕР ====================
-        const hostBtn = document.getElementById('hostBtn'); 
-        const joinBtn = document.getElementById('joinBtn'); 
-        const refreshBtn = document.getElementById('refreshBtn'); 
-        const leaveBtn = document.getElementById('leaveBtn'); 
-        const codeInput = document.getElementById('codeInput'); 
-        const codeDisplay = document.getElementById('codeDisplay'); 
-        const statusEl = document.getElementById('connectionStatus'); 
-        const roomListEl = document.getElementById('roomList');
-        
-        function serializePlayer(p) {
-            return {
-                x: p.x, y: p.y, vx: p.vx, vy: p.vy, hp: p.hp,
-                weapon: p.weapon, facing: p.facing,
-                shieldActive: p.shieldActive, shieldStamina: p.shieldStamina,
-                bowCharging: p.bowCharging, bowCharge: p.bowCharge,
-                hitWall: p.hitWall
-            };
+        function sendPlayerState() {
+            if (!isMultiplayer || !roomRef || !gameStarted) return;
+            const myPlayer = playerRole === 'blue' ? blue : red;
+            roomRef.child(playerRole).update({
+                x: Math.round(myPlayer.x), y: Math.round(myPlayer.y), hp: myPlayer.hp,
+                weapon: myPlayer.weapon, facing: myPlayer.facing,
+                shieldActive: myPlayer.shieldActive, bowCharging: myPlayer.bowCharging,
+                bowCharge: myPlayer.bowCharge, connected: true, isDead: myPlayer.isDead,
+                axeAngle: axeAngle, axeCooldown: axeCooldown
+            });
         }
         
-        function deserializePlayer(p, data) {
-            if (!data) return;
-            p.x = data.x; p.y = data.y; 
-            p.vx = data.vx; p.vy = data.vy; 
-            p.hp = data.hp;
-            p.weapon = data.weapon; 
-            p.facing = data.facing;
-            p.shieldActive = data.shieldActive; 
-            p.shieldStamina = data.shieldStamina;
-            p.bowCharging = data.bowCharging; 
-            p.bowCharge = data.bowCharge;
-            p.hitWall = data.hitWall;
+        function sendProjectile(proj) {
+            if (!isMultiplayer || !roomRef) return;
+            const projectileRef = roomRef.child('projectiles').push();
+            projectileRef.set({ ...proj, owner: playerRole });
+            setTimeout(() => projectileRef.remove(), 2000);
         }
+        
+        function sendPowerup(p) {
+            if (!isMultiplayer || !roomRef) return;
+            const powerupRef = roomRef.child('powerups').push();
+            powerupRef.set({ ...p, owner: playerRole });
+            setTimeout(() => powerupRef.remove(), 5000);
+        }
+        
+        function createRemoteProjectile(data) {
+            if (data.type === 'arrow') { arrows.push({ ...data, homingTarget: data.owner === 'blue' ? red : blue }); if (arrows.length > CONFIG.MAX_ARROWS) arrows.shift(); }
+            else if (data.type === 'blaze') { blazeBalls.push(data); while (blazeBalls.length > CONFIG.MAX_BLAZE_BALLS) blazeBalls.shift(); }
+            else if (data.type === 'bell') { bellWaves.push({ ...data, damaged: new Set() }); if (bellWaves.length > CONFIG.MAX_BELL_WAVES) bellWaves.shift(); }
+            else if (data.type === 'tnt') { tntMarks.push(data); }
+        }
+        
+        function startMultiplayerSync() {
+            if (!isMultiplayer || !roomRef) return;
+            const opponentRole = playerRole === 'blue' ? 'red' : 'blue';
+            
+            const listener1 = roomRef.child(opponentRole).on('value', (snapshot) => {
+                const data = snapshot.val(); if (!data) return;
+                const opponent = opponentRole === 'blue' ? blue : red;
+                opponent.x = data.x; opponent.y = data.y; opponent.hp = data.hp;
+                opponent.weapon = data.weapon; opponent.facing = data.facing;
+                opponent.shieldActive = data.shieldActive; opponent.bowCharging = data.bowCharging;
+                opponent.bowCharge = data.bowCharge; opponent.isDead = data.isDead;
+                if (data.axeAngle !== undefined) axeAngle = data.axeAngle;
+                if (data.axeCooldown !== undefined) axeCooldown = data.axeCooldown;
+            });
+            firebaseListeners.push({ ref: roomRef.child(opponentRole), type: 'value', callback: listener1 });
+            
+            const listener2 = roomRef.child('host/ready').on('value', (snap) => { playersReady.blue = snap.val() || false; updateReadyStatus(); });
+            firebaseListeners.push({ ref: roomRef.child('host/ready'), type: 'value', callback: listener2 });
+            
+            const listener3 = roomRef.child('guest/ready').on('value', (snap) => { playersReady.red = snap.val() || false; updateReadyStatus(); });
+            firebaseListeners.push({ ref: roomRef.child('guest/ready'), type: 'value', callback: listener3 });
+            
+            const listener4 = roomRef.child('gameStarted').on('value', (snapshot) => {
+                if (snapshot.val() === true && !gameStarted) { gameStarted = true; lastTimestamp = performance.now(); winnerDeclared = false; victorySoundPlayed = false; deathTimer = 0; }
+            });
+            firebaseListeners.push({ ref: roomRef.child('gameStarted'), type: 'value', callback: listener4 });
+            
+            const listener5 = roomRef.child('projectiles').on('child_added', (snapshot) => {
+                const proj = snapshot.val(); if (proj.owner !== playerRole) createRemoteProjectile(proj); snapshot.ref.remove();
+            });
+            firebaseListeners.push({ ref: roomRef.child('projectiles'), type: 'child_added', callback: listener5 });
+            
+            const listener6 = roomRef.child('powerups').on('child_added', (snapshot) => {
+                const p = snapshot.val(); if (p.owner !== playerRole) powerups.push(p); snapshot.ref.remove();
+            });
+            firebaseListeners.push({ ref: roomRef.child('powerups'), type: 'child_added', callback: listener6 });
+            
+            const listener7 = roomRef.child(opponentRole + '/connected').on('value', (snapshot) => {
+                if (snapshot.val() === false) { statusEl.textContent = '❌ Оппонент отключился'; isMultiplayer = false; }
+            });
+            firebaseListeners.push({ ref: roomRef.child(opponentRole + '/connected'), type: 'value', callback: listener7 });
+            
+            const listener8 = roomRef.child('powerupsEnabled').on('value', (snapshot) => {
+                if (playerRole !== 'blue') { const val = snapshot.val(); if (val !== null) powerupsEnabled = val; powerupToggle.classList.toggle('active', powerupsEnabled); updateDebugText(); }
+            });
+            firebaseListeners.push({ ref: roomRef.child('powerupsEnabled'), type: 'value', callback: listener8 });
+        }
+        
+        function updateReadyStatus() {
+            if (playersReady.blue && playersReady.red && !gameStarted) roomRef.update({ gameStarted: true });
+            statusEl.textContent = `⏳ Готовность ${(playersReady.blue?1:0) + (playersReady.red?1:0)}/2`;
+        }
+        
+        function clearFirebaseListeners() {
+            firebaseListeners.forEach(l => l.ref.off(l.type, l.callback));
+            firebaseListeners = [];
+        }
+        
+        const hostBtn = document.getElementById('hostBtn'), joinBtn = document.getElementById('joinBtn'), refreshBtn = document.getElementById('refreshBtn');
+        const leaveBtn = document.getElementById('leaveBtn'), codeInput = document.getElementById('codeInput'), codeDisplay = document.getElementById('codeDisplay');
+        const statusEl = document.getElementById('connectionStatus'), roomListEl = document.getElementById('roomList');
+        const powerupToggle = document.getElementById('powerupToggle');
         
         function createRoom() {
-            roomId = generateRoomCode(); 
-            roomRef = db.ref('rooms/' + roomId);
-            
-            roomRef.set({
-                host: { connected: true, ready: false },
-                guest: null,
-                blue: serializePlayer(blue),
-                red: serializePlayer(red),
-                blueProjectiles: { initialized: true },
-                redProjectiles: { initialized: true },
-                axeAngle: axeAngle,
-                gameStarted: false,
-                createdAt: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => {
-                playerRole = 'blue'; 
-                isMultiplayer = true; 
-                codeDisplay.textContent = roomId; 
-                statusEl.textContent = '⏳ Ожидание игрока... (1/2)'; 
-                leaveBtn.style.display = 'inline-block'; 
-                roomListEl.style.display = 'none';
-                setupRoomListeners();
+            roomId = generateRoomCode(); roomRef = db.ref('rooms/' + roomId);
+            roomRef.set({ host: { connected: true, ready: false }, guest: null, gameStarted: false, powerupsEnabled: false, createdAt: firebase.database.ServerValue.TIMESTAMP }).then(() => {
+                playerRole = 'blue'; isMultiplayer = true; codeDisplay.textContent = roomId; statusEl.textContent = '⏳ Ожидание игрока... (1/2)';
+                leaveBtn.style.display = 'inline-block'; roomListEl.style.display = 'none'; startMultiplayerSync();
             });
-            
-            roomRef.child('host/connected').onDisconnect().remove();
-            roomRef.child('host').onDisconnect().remove();
-        }
-        
-        function setupRoomListeners() {
-            // Отслеживание подключения гостя
-            roomRef.child('guest').on('value', (snapshot) => {
-                const guest = snapshot.val();
-                opponentConnected = guest && guest.connected;
-                if (opponentConnected) {
-                    statusEl.textContent = '🎮 Игрок подключился! Нажми на арену для готовности';
-                } else if (isMultiplayer) {
-                    statusEl.textContent = '⏳ Ожидание игрока...';
-                }
-            });
-            
-            // Отслеживание готовности
-            roomRef.child('host/ready').on('value', (snapshot) => {
-                playersReady.blue = snapshot.val() || false;
-                checkBothReady();
-            });
-            
-            roomRef.child('guest/ready').on('value', (snapshot) => {
-                playersReady.red = snapshot.val() || false;
-                checkBothReady();
-            });
-            
-            // Отслеживание состояния оппонента
-            const opponentRole = playerRole === 'blue' ? 'red' : 'blue';
-            roomRef.child(opponentRole).on('value', (snapshot) => {
-                const opponentData = snapshot.val();
-                if (opponentData && opponentConnected) {
-                    const opponent = opponentRole === 'blue' ? blue : red;
-                    deserializePlayer(opponent, opponentData);
-                }
-            });
-            
-            // Отслеживание проектов оппонента
-            roomRef.child(`${opponentRole}Projectiles`).on('child_added', (snapshot) => {
-                const projData = snapshot.val();
-                if (projData && opponentConnected) {
-                    const projType = snapshot.key;
-                    projData.timestamp = projData.timestamp || Date.now();
-                    
-                    if (projType === 'arrow') {
-                        arrows.push(projData);
-                    } else if (projType === 'blazeBall') {
-                        blazeBalls.push(projData);
-                    } else if (projType === 'tnt') {
-                        tntMarks.push(projData);
-                    } else if (projType === 'poisonCloud') {
-                        poisonClouds.push(projData);
-                    } else if (projType === 'bellWave') {
-                        projData.damaged = new Set();
-                        bellWaves.push(projData);
-                    }
-                    
-                    snapshot.ref.remove();
-                }
-            });
-            
-            // Отслеживание угла топора
-            if (playerRole === 'red') {
-                roomRef.child('axeAngle').on('value', (snapshot) => {
-                    const angle = snapshot.val();
-                    if (angle !== null) axeAngle = angle;
-                });
-            }
-            
-            // Отслеживание статуса игры
-            roomRef.child('gameStarted').on('value', (snapshot) => {
-                const started = snapshot.val();
-                if (started === true && !gameStarted) {
-                    gameStarted = true;
-                    statusEl.textContent = '⚔️ ИГРА НАЧАЛАСЬ! ⚔️';
-                } else if (started === false && gameStarted) {
-                    gameStarted = false;
-                }
-            });
-            
-            // Отслеживание отключения оппонента
-            roomRef.child(`${opponentRole}/connected`).on('value', (snapshot) => {
-                if (!snapshot.val() && opponentConnected) {
-                    statusEl.textContent = '❌ Оппонент отключился';
-                    gameStarted = false;
-                    opponentConnected = false;
-                    playersReady = { blue: false, red: false };
-                }
-            });
-        }
-        
-        function checkBothReady() {
-            if (!isMultiplayer) return;
-            
-            if (playersReady.blue && playersReady.red && !gameStarted) {
-                gameStarted = true;
-                roomRef.child('gameStarted').set(true);
-                statusEl.textContent = '⚔️ ИГРА НАЧАЛАСЬ! ⚔️';
-            } else {
-                const readyCount = (playersReady.blue ? 1 : 0) + (playersReady.red ? 1 : 0);
-                statusEl.textContent = `⏳ Готовность: ${readyCount}/2`;
-            }
+            roomRef.child('host/connected').onDisconnect().remove(); roomRef.child('host').onDisconnect().remove();
         }
         
         function joinRoom(code) {
-            roomId = code.toUpperCase(); 
-            roomRef = db.ref('rooms/' + roomId);
-            
-            roomRef.once('value', (snapshot) => {
-                if (!snapshot.exists()) {
-                    statusEl.textContent = '❌ Комната не найдена';
-                    return;
-                }
-                
-                const room = snapshot.val();
-                if (room.guest && room.guest.connected) {
-                    statusEl.textContent = '❌ Комната занята';
-                    return;
-                }
-                
-                roomRef.child('guest').set({ connected: true, ready: false });
-                playerRole = 'red'; 
-                isMultiplayer = true; 
-                opponentConnected = true;
-                codeDisplay.textContent = roomId;
-                statusEl.textContent = '✅ Подключено! Нажми на арену для готовности';
-                leaveBtn.style.display = 'inline-block';
-                roomListEl.style.display = 'none';
-                
-                setupRoomListeners();
+            roomId = code.toUpperCase(); roomRef = db.ref('rooms/' + roomId);
+            roomRef.once('value', (snapshot) => { if (!snapshot.exists()) { statusEl.textContent = '❌ Комната не найдена'; return; } const room = snapshot.val(); if (room.guest && room.guest.connected) { statusEl.textContent = '❌ Комната занята'; return; }
+                roomRef.child('guest').set({ connected: true, ready: false }); playerRole = 'red'; isMultiplayer = true; codeDisplay.textContent = roomId;
+                statusEl.textContent = '✅ Подключено! Нажми на арену для готовности'; leaveBtn.style.display = 'inline-block'; roomListEl.style.display = 'none'; startMultiplayerSync();
+                roomRef.child('powerupsEnabled').once('value', (snap) => { powerupsEnabled = snap.val() || false; powerupToggle.classList.toggle('active', powerupsEnabled); updateDebugText(); });
             });
-            
-            roomRef.child('guest/connected').onDisconnect().remove();
-            roomRef.child('guest').onDisconnect().remove();
+            roomRef.child('guest/connected').onDisconnect().remove(); roomRef.child('guest').onDisconnect().remove();
         }
         
         function refreshRoomList() {
-            roomListEl.style.display = 'block';
-            roomListEl.innerHTML = '<div style="color:#6a8aaa;text-align:center;">Загрузка...</div>';
-            
-            db.ref('rooms').once('value', (snapshot) => {
-                const rooms = snapshot.val();
-                roomListEl.innerHTML = '';
-                
-                if (!rooms) {
-                    roomListEl.innerHTML = '<div style="color:#6a8aaa;text-align:center;">Нет активных комнат</div>';
-                    return;
-                }
-                
-                let hasRooms = false;
-                Object.entries(rooms).forEach(([code, room]) => {
-                    if (!room.host?.connected) return;
-                    if (room.guest?.connected) return;
-                    if (room.gameStarted) return;
-                    
-                    hasRooms = true;
-                    const div = document.createElement('div');
-                    div.className = 'room-item';
-                    div.innerHTML = `<span class="room-code">${code}</span><span class="room-players">👤 1/2</span>`;
-                    div.addEventListener('click', () => {
-                        joinRoom(code);
-                        codeInput.style.display = 'none';
-                    });
-                    roomListEl.appendChild(div);
-                });
-                
-                if (!hasRooms) {
-                    roomListEl.innerHTML = '<div style="color:#6a8aaa;text-align:center;">Нет доступных комнат</div>';
-                }
-            });
+            roomListEl.style.display = 'block'; roomListEl.innerHTML = '<div style="color:#aaa;text-align:center;">Загрузка...</div>';
+            db.ref('rooms').once('value', (snapshot) => { const rooms = snapshot.val(); roomListEl.innerHTML = ''; if (!rooms) { roomListEl.innerHTML = '<div style="color:#aaa;text-align:center;">Нет активных комнат</div>'; return; } let hasRooms = false; Object.entries(rooms).forEach(([code, room]) => { if (!room.host?.connected || room.guest?.connected || room.gameStarted) return; hasRooms = true; const div = document.createElement('div'); div.className = 'room-item'; div.innerHTML = `<span class="room-code">${code}</span><span class="room-players">👤 1/2</span>`; div.addEventListener('click', () => { joinRoom(code); codeInput.style.display = 'none'; }); roomListEl.appendChild(div); }); if (!hasRooms) roomListEl.innerHTML = '<div style="color:#aaa;text-align:center;">Нет доступных комнат</div>'; });
         }
         
         function leaveRoom() {
-            if (roomRef) {
-                if (playerRole === 'blue') {
-                    roomRef.remove();
-                } else {
-                    roomRef.child('guest').remove();
-                }
-            }
-            
-            roomId = null;
-            roomRef = null;
-            playerRole = null;
-            isMultiplayer = false;
-            opponentConnected = false;
-            gameStarted = false;
-            playersReady = { blue: false, red: false };
-            
-            codeDisplay.textContent = '';
-            statusEl.textContent = '';
-            leaveBtn.style.display = 'none';
-            roomListEl.style.display = 'none';
-            
-            resetPlayers();
-            
-            // Локальный сброс
-            blueHook = redHook = null;
-            tntMarks = [];
-            poisonClouds = [];
-            wallMarks = [];
-            arrows = [];
-            bellWaves = [];
-            blazeBalls = [];
-            axeCooldown = 0;
-            gameStarted = false;
-            lastTimestamp = 0;
-            axeAngle = 0;
+            if (roomRef) { if (playerRole === 'blue') roomRef.remove(); else roomRef.child('guest').remove(); }
+            clearFirebaseListeners();
+            roomId = null; roomRef = null; playerRole = null; isMultiplayer = false; gameStarted = false; playersReady = { blue: false, red: false };
+            codeDisplay.textContent = ''; statusEl.textContent = ''; leaveBtn.style.display = 'none'; roomListEl.style.display = 'none'; resetPlayers();
         }
         
-        function setReady() {
-            if (!isMultiplayer || !roomRef) return;
-            
-            const readyRef = roomRef.child(`${playerRole}/ready`);
-            readyRef.once('value', (snap) => {
-                const currentReady = snap.val() || false;
-                readyRef.set(!currentReady);
-                statusEl.textContent = !currentReady ? '⏳ Ожидание второго игрока...' : 'Ожидание готовности...';
-            });
-        }
+        function setReady() { if (!isMultiplayer || !roomRef) return; if (playerRole === 'blue') roomRef.child('host/ready').set(true); else roomRef.child('guest/ready').set(true); statusEl.textContent = '⏳ Ожидание второго игрока...'; }
         
-        function sendGameState() {
-            if (!roomRef || !playerRole || !opponentConnected) return;
-            if (!gameStarted) return;
-            
-            const now = performance.now();
-            if (now - lastSyncTime < SYNC_INTERVAL) return;
-            lastSyncTime = now;
-            
-            const playerState = serializePlayer(playerRole === 'blue' ? blue : red);
-            roomRef.child(playerRole).update(playerState);
-        }
-        
-        function resetGame() {
-            resetPlayers();
-            blueHook = redHook = null;
-            tntMarks = [];
-            poisonClouds = [];
-            wallMarks = [];
-            arrows = [];
-            bellWaves = [];
-            blazeBalls = [];
-            axeCooldown = 0;
-            gameStarted = false;
-            lastTimestamp = 0;
-            playersReady = { blue: false, red: false };
-            
-            if (isMultiplayer) {
-                if (playerRole === 'blue') {
-                    // Хост сбрасывает состояние, но НЕ удаляет connected флаги
-                    roomRef.update({
-                        blue: serializePlayer(blue),
-                        red: serializePlayer(red),
-                        'host/ready': false,
-                        'guest/ready': false,
-                        gameStarted: false,
-                        blueProjectiles: null,
-                        redProjectiles: null,
-                        axeAngle: 0
-                    });
-                } else {
-                    // Гость сбрасывает только свой ready и позицию
-                    roomRef.update({
-                        [`${playerRole}`]: serializePlayer(playerRole === 'blue' ? blue : red),
-                        [`${playerRole}/ready`]: false
-                    });
-                }
-                statusEl.textContent = '🔄 Ожидание готовности...';
-            }
-            
-            axeAngle = 0;
-        }
-        
-        // ==================== ИГРОВОЙ ЦИКЛ ====================
-        function gameLoop(ts) {
-            if (lastTimestamp === 0) {
-                lastTimestamp = ts;
-                animationId = requestAnimationFrame(gameLoop);
-                return;
-            }
-            
-            const dt = Math.min(33, ts - lastTimestamp);
-            lastTimestamp = ts;
-            
-            if (gameStarted) {
-                updateMovement(dt);
-                updateCooldowns();
-                
+        function gameLoop(ts) { 
+            if (lastTimestamp===0) { lastTimestamp=ts; animationId=requestAnimationFrame(gameLoop); return; } 
+            const dt = Math.min(33, ts-lastTimestamp); lastTimestamp=ts; 
+            updateMovement(dt); 
+            if (gameStarted) { 
+                updateCooldowns(); 
                 blue.facing = red.x > blue.x ? 1 : -1;
-                red.facing = blue.x > red.x ? 1 : -1;
-                
-                botAI();
-                handleInput();
-                
-                if (!isMultiplayer || playerRole === 'blue') {
-                    updateBlazeBalls();
-                    updateBellWaves();
-                    updateArrows();
-                    updateTNT();
-                    updatePoison();
-                    updateHooks();
-                    updateAxe();
-                }
-                
-                wallMarks = wallMarks.filter(m => --m.timer > 0);
-                
-                if (isMultiplayer) {
-                    sendGameState();
-                }
-            }
-            
-            draw();
-            animationId = requestAnimationFrame(gameLoop);
+                if (isMultiplayer) red.facing = blue.x > red.x ? 1 : -1;
+                botAI(); handleInput(); 
+                updateBlazeBalls(); updateBellWaves(); updateArrows(); updateTNT(); updatePoison(); updateHooks(); updateAxe(); 
+                wallMarks = wallMarks.filter(m => --m.timer > 0); 
+            } 
+            draw(); 
+            animationId=requestAnimationFrame(gameLoop); 
         }
         
-        // ==================== УПРАВЛЕНИЕ ====================
-        function keyHandler(e) {
-            const k = e.key;
-            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(k)) {
-                e.preventDefault();
+        function resetGame() { 
+            resetPlayers(); blueHook=redHook=null; tntMarks=[]; poisonClouds=[]; wallMarks=[]; arrows=[]; bellWaves=[]; blazeBalls=[]; deathParticles=[]; 
+            axeCooldown=0; gameStarted=false; lastTimestamp=0; winnerDeclared = false; victorySoundPlayed = false; deathTimer = 0; powerups = []; 
+            cachedBackground = null; hitFlashAlpha = 0; lowHpVignette = 0;
+            
+            // Сброс готовности при ресете
+            playersReady = { blue: false, red: false };
+            if (isMultiplayer && roomRef) {
+                roomRef.child('host/ready').set(false);
+                roomRef.child('guest/ready').set(false);
+                roomRef.child('gameStarted').set(false);
             }
             
-            if (e.type === 'keydown') {
-                if (k === 'ArrowUp') keys.up = true;
-                if (k === 'ArrowDown') keys.down = true;
-                if (k === 'ArrowLeft') keys.left = true;
-                if (k === 'ArrowRight') keys.right = true;
-                if (k === ' ') keys.space = true;
-                if (k.toLowerCase() === 'r') resetGame();
-            }
-            
-            if (e.type === 'keyup') {
-                if (k === 'ArrowUp') keys.up = false;
-                if (k === 'ArrowDown') keys.down = false;
-                if (k === 'ArrowLeft') keys.left = false;
-                if (k === 'ArrowRight') keys.right = false;
-                if (k === ' ') keys.space = false;
-            }
+            // Сброс Dev Mode
+            devTimeStopped = false;
+            devSpeedMultiplier = 1;
+            document.getElementById('devSpeedSlider').value = 1;
+            window.devGodBlue = false;
+            window.devGodRed = false;
         }
         
-        function initJoystick() {
-            const stick = document.getElementById('joystickStick');
-            const area = document.getElementById('joystickArea');
-            const maxDist = 40;
-            
-            const handleMove = (clientX, clientY) => {
-                const rect = area.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-                
-                let dx = clientX - centerX;
-                let dy = clientY - centerY;
-                const dist = Math.hypot(dx, dy);
-                
-                if (dist > maxDist) {
-                    dx = dx / dist * maxDist;
-                    dy = dy / dist * maxDist;
-                }
-                
-                stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-                joystickVector.x = dx / maxDist;
-                joystickVector.y = dy / maxDist;
-                joystickActive = true;
-                stick.classList.add('active');
-            };
-            
-            const handleEnd = () => {
-                stick.style.transform = 'translate(-50%, -50%)';
-                joystickVector.x = 0;
-                joystickVector.y = 0;
-                joystickActive = false;
-                stick.classList.remove('active');
-                keys.up = keys.down = keys.left = keys.right = false;
-            };
-            
-            area.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                handleMove(e.touches[0].clientX, e.touches[0].clientY);
-            });
-            
-            area.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                handleMove(e.touches[0].clientX, e.touches[0].clientY);
-            });
-            
-            area.addEventListener('touchend', handleEnd);
-            
-            const attackBtn = document.getElementById('attackArea');
-            attackBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                attackPressed = true;
-            });
-            
-            attackBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                attackPressed = false;
-            });
+        function keyHandler(e) { const k = e.key; if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(k)) e.preventDefault(); if (e.type==='keydown') { if (k==='ArrowUp') keys.up=true; if (k==='ArrowDown') keys.down=true; if (k==='ArrowLeft') keys.left=true; if (k==='ArrowRight') keys.right=true; if (k===' ') keys.space=true; if (k.toLowerCase()==='r') resetGame(); } if (e.type==='keyup') { if (k==='ArrowUp') keys.up=false; if (k==='ArrowDown') keys.down=false; if (k==='ArrowLeft') keys.left=false; if (k==='ArrowRight') keys.right=false; if (k===' ') keys.space=false; } }
+        
+        function initJoystick() { const stick = document.getElementById('joystickStick'), area = document.getElementById('joystickArea'); const maxDist = 40; const handleMove = (clientX, clientY) => { const rect = area.getBoundingClientRect(); const centerX = rect.left + rect.width / 2, centerY = rect.top + rect.height / 2; let dx = clientX - centerX, dy = clientY - centerY; const dist = Math.hypot(dx, dy); if (dist > maxDist) { dx = dx / dist * maxDist; dy = dy / dist * maxDist; } stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`; joystickVector.x = dx / maxDist; joystickVector.y = dy / maxDist; joystickActive = true; stick.classList.add('active'); }; const handleEnd = () => { stick.style.transform = 'translate(-50%, -50%)'; joystickVector.x = 0; joystickVector.y = 0; joystickActive = false; stick.classList.remove('active'); keys.up = keys.down = keys.left = keys.right = false; }; area.addEventListener('touchstart', (e) => { e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); }); area.addEventListener('touchmove', (e) => { e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); }); area.addEventListener('touchend', handleEnd); const attackBtn = document.getElementById('attackArea'); attackBtn.addEventListener('touchstart', (e) => { e.preventDefault(); attackPressed = true; }); attackBtn.addEventListener('touchend', (e) => { e.preventDefault(); attackPressed = false; }); }
+        
+        function updateDebugText() {
+            let text = `🍎 Яблоко | 🪓 2x Топор | 💥 Урон о стену`;
+            if (powerupsEnabled) text = '⚡Усиления | ' + text;
+            if (potatoMode) text = '🥔POTATO | ' + text;
+            if (devMode) text = '🛠️DEV | ' + text;
+            debugEl.textContent = text;
         }
         
-        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
+        // ========== DEV MODE ==========
+        function initDevMode() {
+            const devToggle = document.getElementById('devToggle');
+            const devPanel = document.getElementById('devPanel');
+            
+            devToggle.addEventListener('click', () => {
+                devMode = !devMode;
+                devToggle.classList.toggle('active', devMode);
+                devPanel.classList.toggle('visible', devMode);
+                updateDebugText();
+            });
+            
+            document.getElementById('devClosePanel').addEventListener('click', () => {
+                devMode = false;
+                devToggle.classList.remove('active');
+                devPanel.classList.remove('visible');
+                updateDebugText();
+            });
+            
+            document.getElementById('devKillBlue').addEventListener('click', () => { blue.hp = 0; blue.isDead = true; });
+            document.getElementById('devKillRed').addEventListener('click', () => { red.hp = 0; red.isDead = true; });
+            document.getElementById('devHealBlue').addEventListener('click', () => { blue.hp = blue.maxHp; blue.isDead = false; });
+            document.getElementById('devHealRed').addEventListener('click', () => { red.hp = red.maxHp; red.isDead = false; });
+            
+            document.getElementById('devGodBlue').addEventListener('click', () => { window.devGodBlue = !window.devGodBlue; });
+            document.getElementById('devGodRed').addEventListener('click', () => { window.devGodRed = !window.devGodRed; });
+            
+            document.getElementById('devStopTime').addEventListener('click', () => { devTimeStopped = true; });
+            document.getElementById('devResetTime').addEventListener('click', () => { devTimeStopped = false; devSpeedMultiplier = 1; document.getElementById('devSpeedSlider').value = 1; });
+            
+            document.getElementById('devSpeedSlider').addEventListener('input', (e) => { devSpeedMultiplier = parseFloat(e.target.value); });
+            document.getElementById('devShowHitboxes').addEventListener('change', (e) => { devShowHitboxes = e.target.checked; });
+            document.getElementById('devNoCooldowns').addEventListener('change', (e) => { devNoCooldowns = e.target.checked; });
+            document.getElementById('devInfiniteAmmo').addEventListener('change', (e) => { devInfiniteAmmo = e.target.checked; });
+        }
+        
         function initEvents() {
-            window.addEventListener('keydown', keyHandler);
-            window.addEventListener('keyup', keyHandler);
-            
-            canvas.addEventListener('click', () => {
-                if (!isMultiplayer) {
-                    if (blue.hp > 0 && red.hp > 0) {
-                        gameStarted = true;
-                    } else {
-                        blue.hp = red.hp = 100;
-                        gameStarted = true;
-                    }
-                    lastTimestamp = performance.now();
-                } else {
-                    setReady();
-                }
-            });
-            
+            window.addEventListener('keydown', keyHandler); window.addEventListener('keyup', keyHandler);
+            canvas.addEventListener('click', () => { if (!isMultiplayer) { if (blue.hp>0 && red.hp>0) gameStarted=true; else { blue.hp=red.hp=100; blue.isDead=red.isDead=false; gameStarted=true; winnerDeclared = false; victorySoundPlayed = false; deathTimer = 0; } lastTimestamp=performance.now(); } else { setReady(); } });
             canvas.addEventListener('contextmenu', e => e.preventDefault());
-            
-            document.querySelectorAll('.weapon-option').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const p = btn.dataset.player;
-                    const w = btn.dataset.weapon;
-                    const par = btn.parentElement;
-                    
-                    par.querySelectorAll('.weapon-option').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    
-                    if (p === 'blue') {
-                        blue.weapon = w;
-                        blue.shieldActive = false;
-                    } else {
-                        red.weapon = w;
-                        red.shieldActive = false;
-                    }
-                    
-                    if (isMultiplayer && ((p === 'blue' && playerRole === 'blue') || (p === 'red' && playerRole === 'red'))) {
-                        roomRef.child(`${playerRole}/weapon`).set(w);
-                    }
-                });
-            });
-            
-            document.getElementById('joystickToggle').addEventListener('click', () => {
-                document.getElementById('virtualControls').classList.toggle('visible');
-                document.getElementById('joystickToggle').classList.toggle('active');
-            });
-            
+            document.querySelectorAll('.weapon-option').forEach(btn => { btn.addEventListener('click', () => { const p = btn.dataset.player, w = btn.dataset.weapon, par = btn.parentElement; par.querySelectorAll('.weapon-option').forEach(b => b.classList.remove('active')); btn.classList.add('active'); if (p==='blue') { blue.weapon=w; blue.shieldActive=false; } else { red.weapon=w; red.shieldActive=false; } }); });
+            document.getElementById('joystickToggle').addEventListener('click', () => { document.getElementById('virtualControls').classList.toggle('visible'); document.getElementById('joystickToggle').classList.toggle('active'); });
             document.getElementById('resetButton').addEventListener('click', resetGame);
             
-            hostBtn.addEventListener('click', createRoom);
-            
-            joinBtn.addEventListener('click', () => {
-                codeInput.style.display = 'inline-block';
-                codeInput.focus();
+            powerupToggle.addEventListener('click', () => { 
+                powerupsEnabled = !powerupsEnabled; 
+                powerupToggle.classList.toggle('active', powerupsEnabled); 
+                updateDebugText();
+                if (isMultiplayer && playerRole === 'blue') roomRef.child('powerupsEnabled').set(powerupsEnabled);
             });
             
-            refreshBtn.addEventListener('click', refreshRoomList);
+            const potatoToggle = document.getElementById('potatoToggle');
+            if (potatoMode) potatoToggle.classList.add('active');
+            potatoToggle.addEventListener('click', () => { potatoMode = !potatoMode; potatoToggle.classList.toggle('active', potatoMode); applyPotatoMode(); cachedBackground = null; updateDebugText(); });
             
-            leaveBtn.addEventListener('click', leaveRoom);
+            hostBtn.addEventListener('click', createRoom); joinBtn.addEventListener('click', () => { codeInput.style.display = 'inline-block'; codeInput.focus(); }); refreshBtn.addEventListener('click', refreshRoomList); leaveBtn.addEventListener('click', leaveRoom);
+            codeInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { const code = codeInput.value.trim(); if (code) { joinRoom(code); codeInput.style.display = 'none'; codeInput.value = ''; } } });
             
-            codeInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const code = codeInput.value.trim();
-                    if (code) {
-                        joinRoom(code);
-                        codeInput.style.display = 'none';
-                        codeInput.value = '';
-                    }
-                }
-            });
-            
-            initJoystick();
+            initJoystick(); initDevMode(); updateDebugText();
+            window.addEventListener('resize', () => { cachedBackground = null; });
         }
         
-        function cleanup() {
-            if (animationId) cancelAnimationFrame(animationId);
-            window.removeEventListener('keydown', keyHandler);
-            window.removeEventListener('keyup', keyHandler);
-            if (roomRef) leaveRoom();
-        }
-        
-        function start() {
-            initEvents();
-            animationId = requestAnimationFrame(gameLoop);
-        }
-        
-        window.addEventListener('beforeunload', cleanup);
-        start();
+        function cleanup() { if(animationId) cancelAnimationFrame(animationId); window.removeEventListener('keydown',keyHandler); window.removeEventListener('keyup',keyHandler); clearFirebaseListeners(); if (roomRef) leaveRoom(); }
+        function start() { initEvents(); animationId=requestAnimationFrame(gameLoop); }
+        window.addEventListener('beforeunload', cleanup); start();
     })();
 </script>
 </body>
